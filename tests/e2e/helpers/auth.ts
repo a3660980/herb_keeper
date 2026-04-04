@@ -41,6 +41,11 @@ async function completeEmailVerification(page: Page, credentials: E2ECredentials
   await signIn(page, credentials)
 }
 
+type PasswordLoginResult =
+  | "dashboard"
+  | "email-not-confirmed"
+  | "invalid-credentials"
+
 async function tryPasswordLogin(page: Page, credentials: E2ECredentials) {
   await page.goto("/auth/login")
   await page.getByLabel("電子郵件").fill(credentials.email)
@@ -67,10 +72,23 @@ async function tryPasswordLogin(page: Page, credentials: E2ECredentials) {
       .getByText("帳號或密碼不正確。", { exact: false })
       .isVisible()
   ) {
-    throw new Error("E2E_USER_EMAIL 或 E2E_USER_PASSWORD 不正確，無法完成登入。")
+    return "invalid-credentials" as const
   }
 
   throw new Error(`Unexpected login result while running E2E auth flow: ${page.url()}`)
+}
+
+async function finishLogin(page: Page, credentials: E2ECredentials, result: PasswordLoginResult) {
+  if (result === "dashboard") {
+    return
+  }
+
+  if (result === "email-not-confirmed") {
+    await completeEmailVerification(page, credentials)
+    return
+  }
+
+  throw new Error("E2E_USER_EMAIL 或 E2E_USER_PASSWORD 不正確，無法完成登入。")
 }
 
 export function getE2ECredentials(): E2ECredentials {
@@ -85,11 +103,12 @@ export async function login(page: Page) {
   const credentials = getE2ECredentials()
   const result = await tryPasswordLogin(page, credentials)
 
-  if (result === "dashboard") {
+  if (result === "invalid-credentials") {
+    await registerAndLogin(page)
     return
   }
 
-  await completeEmailVerification(page, credentials)
+  await finishLogin(page, credentials, result)
 }
 
 export async function registerAndLogin(page: Page) {
@@ -114,7 +133,8 @@ export async function registerAndLogin(page: Page) {
       .getByText("這個 Email 已經註冊過，請直接登入。", { exact: false })
       .isVisible()
   ) {
-    await signIn(page, credentials)
+    const result = await tryPasswordLogin(page, credentials)
+    await finishLogin(page, credentials, result)
     return
   }
 

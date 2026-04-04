@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js"
+import { createClient, type EmailOtpType } from "@supabase/supabase-js"
 
 import {
   getSupabasePublicEnv,
@@ -10,6 +10,15 @@ export type E2ECleanupTargets = {
   customerPhones?: string[]
   productNames?: string[]
 }
+
+const EMAIL_OTP_TYPES: EmailOtpType[] = [
+  "signup",
+  "invite",
+  "magiclink",
+  "recovery",
+  "email_change",
+  "email",
+]
 
 function getUniqueValues(values?: string[]) {
   return [...new Set(values?.map((value) => value.trim()).filter(Boolean) ?? [])]
@@ -23,6 +32,10 @@ function throwIfError(error: { message: string } | null, context: string) {
   if (error) {
     throw new Error(`${context}: ${error.message}`)
   }
+}
+
+function isEmailOtpType(value: string): value is EmailOtpType {
+  return EMAIL_OTP_TYPES.includes(value as EmailOtpType)
 }
 
 function createAdminClient() {
@@ -60,9 +73,17 @@ export async function confirmEmailForE2EUser(email: string) {
     )
   }
 
+  const verificationType = data.properties.verification_type
+
+  if (!isEmailOtpType(verificationType)) {
+    throw new Error(
+      `Unsupported E2E email verification type for ${email}: ${verificationType}`
+    )
+  }
+
   const publicClient = createPublicClient()
   const { error: verifyError } = await publicClient.auth.verifyOtp({
-    type: data.properties.verification_type,
+    type: verificationType,
     token_hash: data.properties.hashed_token,
   })
 
@@ -72,7 +93,7 @@ export async function confirmEmailForE2EUser(email: string) {
     )
   }
 
-  return data.properties.verification_type
+  return verificationType
 }
 
 async function loadCustomerIds(supabase: ReturnType<typeof createAdminClient>, targets: E2ECleanupTargets) {
