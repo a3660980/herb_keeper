@@ -1,0 +1,160 @@
+"use server"
+
+import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
+
+import {
+  createProductFormState,
+  getProductFieldErrors,
+  productFormSchema,
+  readProductFormValues,
+  type ProductFormState,
+} from "@/lib/features/products"
+import { createClient } from "@/lib/supabase/server"
+import { withQueryString } from "@/lib/url"
+
+function getProductErrorMessage(error: { code?: string; message: string }, name: string) {
+  if (error.code === "23505") {
+    return `藥材「${name}」已存在，請改用其他名稱。`
+  }
+
+  if (error.code === "23503") {
+    return "這個藥材已經被進貨、訂單或現場銷貨資料引用，無法刪除。"
+  }
+
+  return error.message || "藥材資料寫入失敗，請稍後再試。"
+}
+
+function getUnexpectedErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "發生未預期錯誤，請稍後再試。"
+}
+
+export async function createProductAction(
+  _previousState: ProductFormState,
+  formData: FormData
+) {
+  const values = readProductFormValues(formData)
+  const parsed = productFormSchema.safeParse(values)
+
+  if (!parsed.success) {
+    return {
+      message: "請修正表單欄位後再送出。",
+      fieldErrors: getProductFieldErrors(parsed.error),
+      values,
+    } satisfies ProductFormState
+  }
+
+  try {
+    const supabase = await createClient()
+    const { error } = await supabase.from("products").insert({
+      name: parsed.data.name,
+      base_price: parsed.data.basePrice,
+      low_stock_threshold: parsed.data.lowStockThreshold,
+      unit: parsed.data.unit,
+    })
+
+    if (error) {
+      return {
+        message: getProductErrorMessage(error, parsed.data.name),
+        fieldErrors: {},
+        values,
+      } satisfies ProductFormState
+    }
+  } catch (error) {
+    return createProductFormState(values, getUnexpectedErrorMessage(error))
+  }
+
+  revalidatePath("/products")
+  redirect(
+    withQueryString("/products", {
+      status: `已建立藥材：${parsed.data.name}`,
+    })
+  )
+}
+
+export async function updateProductAction(
+  productId: string,
+  _previousState: ProductFormState,
+  formData: FormData
+) {
+  const values = readProductFormValues(formData)
+  const parsed = productFormSchema.safeParse(values)
+
+  if (!parsed.success) {
+    return {
+      message: "請修正表單欄位後再送出。",
+      fieldErrors: getProductFieldErrors(parsed.error),
+      values,
+    } satisfies ProductFormState
+  }
+
+  try {
+    const supabase = await createClient()
+    const { error } = await supabase
+      .from("products")
+      .update({
+        name: parsed.data.name,
+        base_price: parsed.data.basePrice,
+        low_stock_threshold: parsed.data.lowStockThreshold,
+        unit: parsed.data.unit,
+      })
+      .eq("id", productId)
+
+    if (error) {
+      return {
+        message: getProductErrorMessage(error, parsed.data.name),
+        fieldErrors: {},
+        values,
+      } satisfies ProductFormState
+    }
+  } catch (error) {
+    return createProductFormState(values, getUnexpectedErrorMessage(error))
+  }
+
+  revalidatePath("/products")
+  revalidatePath(`/products/${productId}/edit`)
+  redirect(
+    withQueryString("/products", {
+      status: `已更新藥材：${parsed.data.name}`,
+    })
+  )
+}
+
+export async function deleteProductAction(formData: FormData) {
+  const productId = String(formData.get("productId") ?? "")
+  const productName = String(formData.get("productName") ?? "這筆藥材")
+
+  if (!productId) {
+    redirect(
+      withQueryString("/products", {
+        error: "缺少要刪除的藥材識別碼。",
+      })
+    )
+  }
+
+  try {
+    const supabase = await createClient()
+    const { error } = await supabase.from("products").delete().eq("id", productId)
+
+    if (error) {
+      redirect(
+        withQueryString("/products", {
+          error: getProductErrorMessage(error, productName),
+        })
+      )
+    }
+  } catch (error) {
+    redirect(
+      withQueryString("/products", {
+        error: getUnexpectedErrorMessage(error),
+      })
+    )
+  }
+
+  revalidatePath("/products")
+  redirect(
+    withQueryString("/products", {
+      status: `已刪除藥材：${productName}`,
+    })
+  )
+}
