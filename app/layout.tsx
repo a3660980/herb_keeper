@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Noto_Sans_TC } from "next/font/google"
 
 import "./globals.css"
+import { getSiteUrl } from "@/lib/site-url"
 import { cn } from "@/lib/utils"
 
 const bodyFont = Noto_Sans_TC({
@@ -12,6 +13,7 @@ const bodyFont = Noto_Sans_TC({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getSiteUrl()),
   title: {
     default: "HerbKeeper | 中藥行進銷存系統",
     template: "%s | HerbKeeper",

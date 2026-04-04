@@ -31,12 +31,15 @@ pnpm install
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SITE_URL=https://your-app-domain.com
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=<your publishable key>
 SUPABASE_DB_PASSWORD=<your database password for Supabase CLI>
 SUPABASE_SERVICE_ROLE_KEY=<optional service role key>
 ```
 
 如果你目前沿用 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` 或 `NEXT_PUBLIC_SUPABASE_ANON_KEY`，程式也會相容，不需要立刻改名。
+
+`NEXT_PUBLIC_SITE_URL` 建議在 Vercel production 使用正式網域；若未設定，程式會改從 `VERCEL_PROJECT_PRODUCTION_URL`、`VERCEL_BRANCH_URL` 或 `VERCEL_URL` 推導站台網址。
 
 3. 將 migration 套用到你的線上 Supabase 專案。
 
@@ -63,6 +66,40 @@ supabase db push --include-seed
 ```bash
 pnpm dev
 ```
+
+## 部署到 Vercel
+
+1. 在 Vercel 匯入這個 repository，Framework Preset 使用 `Next.js`。
+
+2. 在 Vercel 專案的 Environment Variables 至少設定這些值：
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=<your publishable key>
+NEXT_PUBLIC_SITE_URL=https://your-production-domain.com
+```
+
+如果目前沒有使用到任何需要高權限的 server-only 管理操作，`SUPABASE_SERVICE_ROLE_KEY` 可以先不填。
+
+3. 若你想讓 preview deployment 也能正確處理認證連結，建議二選一：
+
+- 在 Vercel 開啟 system environment variables，讓 `VERCEL_URL` / `VERCEL_BRANCH_URL` 可供 server side 使用。
+- 或只維持 production deployment，並固定設定 `NEXT_PUBLIC_SITE_URL`。
+
+4. 到 Supabase Dashboard 的 Auth URL Configuration 更新：
+
+- `Site URL` 設為你的 Vercel production 網域。
+- `Redirect URLs` 加入你的 Vercel preview 網域與 production 網域，例如 `https://*.vercel.app/auth/login` 和正式網域的 `/auth/login`。
+
+5. 在正式部署前，先於本機執行：
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm build
+```
+
+目前這個 repo 的 `pnpm build` 已可通過，Vercel 只要有正確環境變數即可直接部署。
 
 ## 可用腳本
 
@@ -148,6 +185,7 @@ pnpm exec playwright install chromium
 - 在 production 只跑 `supabase db push`，不要帶入示範 seed。
 - 至少建立一位 `admin` 帳號，並確認 `public.profiles.role` 與 `is_active` 正確。
 - 確認 Supabase Auth 的 Email signup / password policy 符合營運需求。
+- 確認 Supabase Auth 的 `Site URL` 與 `Redirect URLs` 已對齊 Vercel 網域。
 - 以 `pnpm typecheck && pnpm lint && pnpm build` 做最後檢查。
 
 ## 下一步

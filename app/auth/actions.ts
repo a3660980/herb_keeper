@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { getAbsoluteUrl } from "@/lib/site-url"
 import { createClient } from "@/lib/supabase/server"
 import { withQueryString } from "@/lib/url"
 
@@ -95,6 +96,7 @@ export async function signUpAction(formData: FormData) {
     email,
     password,
     options: {
+      emailRedirectTo: getAbsoluteUrl("/auth/login"),
       data: {
         full_name: fullName,
       },
