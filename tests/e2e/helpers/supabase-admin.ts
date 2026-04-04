@@ -1,0 +1,216 @@
+import { createClient } from "@supabase/supabase-js"
+
+import {
+  getSupabasePublicEnv,
+  getSupabaseServiceRoleKey,
+} from "../../../lib/supabase/env"
+
+export type E2ECleanupTargets = {
+  customerNames?: string[]
+  customerPhones?: string[]
+  productNames?: string[]
+}
+
+function getUniqueValues(values?: string[]) {
+  return [...new Set(values?.map((value) => value.trim()).filter(Boolean) ?? [])]
+}
+
+function collectIds(rows: Array<{ id: string }> | null | undefined) {
+  return [...new Set(rows?.map(({ id }) => id) ?? [])]
+}
+
+function throwIfError(error: { message: string } | null, context: string) {
+  if (error) {
+    throw new Error(`${context}: ${error.message}`)
+  }
+}
+
+function createAdminClient() {
+  const { url } = getSupabasePublicEnv()
+
+  return createClient(url, getSupabaseServiceRoleKey(), {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
+}
+
+function createPublicClient() {
+  const { url, publicKey } = getSupabasePublicEnv()
+
+  return createClient(url, publicKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
+}
+
+export async function confirmEmailForE2EUser(email: string) {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase.auth.admin.generateLink({
+    type: "magiclink",
+    email,
+  })
+
+  if (error) {
+    throw new Error(
+      `Failed to generate E2E email verification link for ${email}: ${error.message}`
+    )
+  }
+
+  const publicClient = createPublicClient()
+  const { error: verifyError } = await publicClient.auth.verifyOtp({
+    type: data.properties.verification_type,
+    token_hash: data.properties.hashed_token,
+  })
+
+  if (verifyError) {
+    throw new Error(
+      `Failed to confirm E2E email for ${email}: ${verifyError.message}`
+    )
+  }
+
+  return data.properties.verification_type
+}
+
+async function loadCustomerIds(supabase: ReturnType<typeof createAdminClient>, targets: E2ECleanupTargets) {
+  const customerIds = new Set<string>()
+  const customerNames = getUniqueValues(targets.customerNames)
+  const customerPhones = getUniqueValues(targets.customerPhones)
+
+  if (customerNames.length > 0) {
+    const { data, error } = await supabase
+      .from("customers")
+      .select("id")
+      .in("name", customerNames)
+
+    throwIfError(error, "Failed to load E2E customers by name")
+
+    collectIds(data).forEach((id) => customerIds.add(id))
+  }
+
+  if (customerPhones.length > 0) {
+    const { data, error } = await supabase
+      .from("customers")
+      .select("id")
+      .in("phone", customerPhones)
+
+    throwIfError(error, "Failed to load E2E customers by phone")
+
+    collectIds(data).forEach((id) => customerIds.add(id))
+  }
+
+  return [...customerIds]
+}
+
+async function deleteLedgerEntries(
+  supabase: ReturnType<typeof createAdminClient>,
+  sourceType: "shipment" | "direct_sale",
+  sourceIds: string[]
+) {
+  if (sourceIds.length === 0) {
+    return
+  }
+
+  const { error } = await supabase
+    .from("inventory_ledger")
+    .delete()
+    .eq("source_type", sourceType)
+    .in("source_id", sourceIds)
+
+  throwIfError(error, `Failed to delete E2E ${sourceType} ledger entries`)
+}
+
+export async function cleanupE2EData(targets: E2ECleanupTargets) {
+  const supabase = createAdminClient()
+  const customerIds = await loadCustomerIds(supabase, targets)
+
+  if (customerIds.length > 0) {
+    const { data: orders, error: ordersError } = await supabase
+      .from("orders")
+      .select("id")
+      .in("customer_id", customerIds)
+
+    throwIfError(ordersError, "Failed to load E2E orders")
+
+    const orderIds = collectIds(orders)
+
+    if (orderIds.length > 0) {
+      const { data: shipments, error: shipmentsError } = await supabase
+        .from("shipments")
+        .select("id")
+        .in("order_id", orderIds)
+
+      throwIfError(shipmentsError, "Failed to load E2E shipments")
+
+      const shipmentIds = collectIds(shipments)
+      await deleteLedgerEntries(supabase, "shipment", shipmentIds)
+
+      if (shipmentIds.length > 0) {
+        const { error: deleteShipmentsError } = await supabase
+          .from("shipments")
+          .delete()
+          .in("id", shipmentIds)
+
+        throwIfError(deleteShipmentsError, "Failed to delete E2E shipments")
+      }
+
+      const { error: deleteOrdersError } = await supabase
+        .from("orders")
+        .delete()
+        .in("id", orderIds)
+
+      throwIfError(deleteOrdersError, "Failed to delete E2E orders")
+    }
+
+    const { data: directSales, error: directSalesError } = await supabase
+      .from("direct_sales")
+      .select("id")
+      .in("customer_id", customerIds)
+
+    throwIfError(directSalesError, "Failed to load E2E direct sales")
+
+    const directSaleIds = collectIds(directSales)
+    await deleteLedgerEntries(supabase, "direct_sale", directSaleIds)
+
+    if (directSaleIds.length > 0) {
+      const { error: deleteDirectSalesError } = await supabase
+        .from("direct_sales")
+        .delete()
+        .in("id", directSaleIds)
+
+      throwIfError(deleteDirectSalesError, "Failed to delete E2E direct sales")
+    }
+
+    const { error: deleteCustomersError } = await supabase
+      .from("customers")
+      .delete()
+      .in("id", customerIds)
+
+    throwIfError(deleteCustomersError, "Failed to delete E2E customers")
+  }
+
+  const productNames = getUniqueValues(targets.productNames)
+
+  if (productNames.length > 0) {
+    const { data: products, error: productsError } = await supabase
+      .from("products")
+      .select("id")
+      .in("name", productNames)
+
+    throwIfError(productsError, "Failed to load E2E products")
+
+    const productIds = collectIds(products)
+
+    if (productIds.length > 0) {
+      const { error: deleteProductsError } = await supabase
+        .from("products")
+        .delete()
+        .in("id", productIds)
+
+      throwIfError(deleteProductsError, "Failed to delete E2E products")
+    }
+  }
+}

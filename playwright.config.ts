@@ -1,4 +1,11 @@
+import { existsSync } from "node:fs"
 import { defineConfig, devices } from "@playwright/test"
+
+for (const envFile of [".env", ".env.local"]) {
+  if (existsSync(envFile)) {
+    process.loadEnvFile?.(envFile)
+  }
+}
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3100"
 const useExternalServer = Boolean(process.env.PLAYWRIGHT_BASE_URL)

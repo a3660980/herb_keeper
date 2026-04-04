@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test"
 
 import { login } from "./helpers/auth"
+import { runWithE2ECleanup } from "./helpers/cleanup"
 import { createUniquePhone, createUniqueSuffix } from "./helpers/factories"
 import { createCustomer } from "./helpers/operations"
 
@@ -9,64 +10,72 @@ test("order, shipment, and sale forms retain business selections after validatio
   const customerName = `Retention 客戶 ${suffix}`
   const customerPhone = createUniquePhone()
 
-  await login(page)
+  await runWithE2ECleanup(
+    async () => {
+      await login(page)
 
-  await createCustomer(page, {
-    name: customerName,
-    phone: customerPhone,
-    type: "vip",
-    discountRate: "0.9",
-  })
+      await createCustomer(page, {
+        name: customerName,
+        phone: customerPhone,
+        type: "vip",
+        discountRate: "0.9",
+      })
 
-  await page.goto("/orders/new")
-  await page.locator("#customerId").selectOption({
-    label: `${customerName} (${customerPhone})`,
-  })
+      await page.goto("/orders/new")
+      await page.locator("#customerId").selectOption({
+        label: `${customerName} (${customerPhone})`,
+      })
 
-  const orderLine = page.getByTestId("order-line").first()
-  await orderLine.getByLabel("訂單明細 1 藥材").selectOption({ label: "黃耆" })
-  await page.getByRole("button", { name: "建立訂單" }).click()
+      const orderLine = page.getByTestId("order-line").first()
+      await orderLine.getByLabel("訂單明細 1 藥材").selectOption({ label: "黃耆" })
+      await page.getByRole("button", { name: "建立訂單" }).click()
 
-  await expect(page.getByText("請修正訂單欄位後再送出。")).toBeVisible()
-  await expect(page.getByText("請輸入數量")).toBeVisible()
-  await expect(page.locator("#customerId option:checked")).toHaveText(
-    `${customerName} (${customerPhone})`
+      await expect(page.getByText("請修正訂單欄位後再送出。")).toBeVisible()
+      await expect(page.getByText("請輸入數量")).toBeVisible()
+      await expect(page.locator("#customerId option:checked")).toHaveText(
+        `${customerName} (${customerPhone})`
+      )
+      await expect(orderLine.getByLabel("訂單明細 1 藥材")).toHaveValue(/.+/)
+      await expect(orderLine.getByLabel("訂單明細 1 藥材").locator("option:checked")).toHaveText(
+        "黃耆"
+      )
+      await expect(page.locator("#orderDate")).toHaveValue(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/)
+
+      await orderLine.getByLabel("訂單明細 1 訂購數量").fill("2")
+      await orderLine.getByLabel("訂單明細 1 成交單價").fill("52")
+      await page.getByRole("button", { name: "建立訂單" }).click()
+
+      await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+\?status=/)
+      await page.getByRole("button", { name: "建立出貨批次" }).click()
+
+      await expect(page.getByText("請修正出貨欄位後再送出。")).toBeVisible()
+      await expect(page.getByText("至少輸入一筆本次出貨數量。")).toBeVisible()
+      await expect(page.locator("#shipmentDate")).toHaveValue(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/)
+      const shipmentLine = page.getByTestId("shipment-line").first()
+      await expect(shipmentLine.getByLabel("黃耆 本次出貨數量")).toHaveValue("0")
+
+      await page.goto("/sales/new")
+      await page.locator("#customerId").selectOption({
+        label: `${customerName} (${customerPhone})`,
+      })
+
+      const saleLine = page.getByTestId("sale-line").first()
+      await saleLine.getByLabel("銷貨明細 1 藥材").selectOption({ label: "黃耆" })
+      await page.getByRole("button", { name: "建立現場銷貨" }).click()
+
+      await expect(page.getByText("請修正銷貨欄位後再送出。")).toBeVisible()
+      await expect(page.getByText("請輸入數量")).toBeVisible()
+      await expect(page.locator("#customerId option:checked")).toHaveText(
+        `${customerName} (${customerPhone})`
+      )
+      await expect(saleLine.getByLabel("銷貨明細 1 藥材").locator("option:checked")).toHaveText(
+        "黃耆"
+      )
+      await expect(page.locator("#saleDate")).toHaveValue(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/)
+    },
+    {
+      customerNames: [customerName],
+      customerPhones: [customerPhone],
+    }
   )
-  await expect(orderLine.getByLabel("訂單明細 1 藥材")).toHaveValue(/.+/)
-  await expect(orderLine.getByLabel("訂單明細 1 藥材").locator("option:checked")).toHaveText(
-    "黃耆"
-  )
-  await expect(page.locator("#orderDate")).toHaveValue(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/)
-
-  await orderLine.getByLabel("訂單明細 1 訂購數量").fill("2")
-  await orderLine.getByLabel("訂單明細 1 成交單價").fill("52")
-  await page.getByRole("button", { name: "建立訂單" }).click()
-
-  await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+\?status=/)
-  await page.getByRole("button", { name: "建立出貨批次" }).click()
-
-  await expect(page.getByText("請修正出貨欄位後再送出。")).toBeVisible()
-  await expect(page.getByText("至少輸入一筆本次出貨數量。")).toBeVisible()
-  await expect(page.locator("#shipmentDate")).toHaveValue(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/)
-  const shipmentLine = page.getByTestId("shipment-line").first()
-  await expect(shipmentLine.getByLabel("黃耆 本次出貨數量")).toHaveValue("0")
-
-  await page.goto("/sales/new")
-  await page.locator("#customerId").selectOption({
-    label: `${customerName} (${customerPhone})`,
-  })
-
-  const saleLine = page.getByTestId("sale-line").first()
-  await saleLine.getByLabel("銷貨明細 1 藥材").selectOption({ label: "黃耆" })
-  await page.getByRole("button", { name: "建立現場銷貨" }).click()
-
-  await expect(page.getByText("請修正銷貨欄位後再送出。")).toBeVisible()
-  await expect(page.getByText("請輸入數量")).toBeVisible()
-  await expect(page.locator("#customerId option:checked")).toHaveText(
-    `${customerName} (${customerPhone})`
-  )
-  await expect(saleLine.getByLabel("銷貨明細 1 藥材").locator("option:checked")).toHaveText(
-    "黃耆"
-  )
-  await expect(page.locator("#saleDate")).toHaveValue(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/)
 })

@@ -117,6 +117,8 @@ pnpm format
 
 ## 測試
 
+GitHub Actions CI 目前會在 `master`、`staging` 與所有 Pull Request 上自動執行 `pnpm lint`、`pnpm test:unit` 與 Playwright E2E。
+
 ### Unit tests
 
 `Vitest` 目前覆蓋 `lib/` 下的 formatter、URL helper、Supabase env helper，以及 customers / products / orders / sales 的表單與 payload helper。
@@ -128,9 +130,10 @@ pnpm test:unit:coverage
 
 ### Playwright E2E
 
-E2E 會使用真實登入帳號進行核心流程驗證，因此執行前需要提供測試帳號：
+E2E 會先透過註冊頁建立測試帳號，再以同一組帳號登入並完成核心流程驗證。若 Supabase 啟用 email confirmation，測試會透過 service role 自動將該帳號標記為已驗證，因此執行前需要提供以下環境變數：
 
 ```bash
+SUPABASE_SERVICE_ROLE_KEY=<service role key> \
 E2E_USER_EMAIL=<test user email> \
 E2E_USER_PASSWORD=<test user password> \
 pnpm test:e2e
@@ -140,6 +143,7 @@ pnpm test:e2e
 
 ```bash
 PLAYWRIGHT_BASE_URL=http://127.0.0.1:3006 \
+SUPABASE_SERVICE_ROLE_KEY=<service role key> \
 E2E_USER_EMAIL=<test user email> \
 E2E_USER_PASSWORD=<test user password> \
 pnpm test:e2e
@@ -150,6 +154,14 @@ pnpm test:e2e
 ```bash
 pnpm exec playwright install chromium
 ```
+
+若要讓 GitHub Actions 也執行 E2E，請在 GitHub repository secrets 設定至少這五個值：
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `E2E_USER_EMAIL`
+- `E2E_USER_PASSWORD`
 
 ## 認證與角色模型
 
