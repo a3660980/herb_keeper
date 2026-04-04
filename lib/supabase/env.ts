@@ -3,20 +3,38 @@ type SupabasePublicEnv = {
   publicKey: string
 }
 
+function readEnv(name: string) {
+  const value = process.env[name]?.trim()
+
+  return value ? value : undefined
+}
+
+function isValidHttpUrl(value: string) {
+  try {
+    const url = new URL(value)
+
+    return url.protocol === "http:" || url.protocol === "https:"
+  } catch {
+    return false
+  }
+}
+
 function getSupabasePublicKey() {
   return (
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    readEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY") ??
+    readEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY") ??
+    readEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
   )
 }
 
 export function hasSupabaseEnv() {
-  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && getSupabasePublicKey())
+  const url = readEnv("NEXT_PUBLIC_SUPABASE_URL")
+
+  return Boolean(url && getSupabasePublicKey() && isValidHttpUrl(url))
 }
 
 export function getSupabasePublicEnv(): SupabasePublicEnv {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const url = readEnv("NEXT_PUBLIC_SUPABASE_URL")
   const publicKey = getSupabasePublicKey()
 
   if (!url || !publicKey) {
@@ -25,11 +43,15 @@ export function getSupabasePublicEnv(): SupabasePublicEnv {
     )
   }
 
+  if (!isValidHttpUrl(url)) {
+    throw new Error("Invalid NEXT_PUBLIC_SUPABASE_URL. Must be a valid HTTP or HTTPS URL.")
+  }
+
   return { url, publicKey }
 }
 
 export function getSupabaseServiceRoleKey() {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const serviceRoleKey = readEnv("SUPABASE_SERVICE_ROLE_KEY")
 
   if (!serviceRoleKey) {
     throw new Error(

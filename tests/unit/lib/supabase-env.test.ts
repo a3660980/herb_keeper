@@ -46,6 +46,29 @@ describe("lib/supabase/env", () => {
     })
   })
 
+  it("trims whitespace from Supabase env vars", () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "  https://example.supabase.co  \n"
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY = "  public-key  "
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "  service-role  \n"
+
+    expect(hasSupabaseEnv()).toBe(true)
+    expect(getSupabasePublicEnv()).toEqual({
+      url: "https://example.supabase.co",
+      publicKey: "public-key",
+    })
+    expect(getSupabaseServiceRoleKey()).toBe("service-role")
+  })
+
+  it("treats an invalid Supabase URL as unavailable and throws a clear error", () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "sb_publishable_not_a_url"
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY = "public-key"
+
+    expect(hasSupabaseEnv()).toBe(false)
+    expect(() => getSupabasePublicEnv()).toThrow(
+      "Invalid NEXT_PUBLIC_SUPABASE_URL. Must be a valid HTTP or HTTPS URL."
+    )
+  })
+
   it("throws when public env vars are incomplete", () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co"
 
