@@ -2,6 +2,7 @@ import Link from "next/link"
 
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
+import { TradeModuleSwitch } from "@/components/app/trade-module-switch"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -19,7 +20,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { formatCurrency, formatDateTime, formatQuantity, toNumberValue } from "@/lib/format"
+import { formatCurrency, formatDateTime, formatQuantity } from "@/lib/format"
+import {
+  buildSaleTradeSummaries,
+  filterTradeSummaries,
+  type TradeSummary,
+} from "@/lib/features/trades"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
 import { getSingleSearchParam } from "@/lib/url"
@@ -46,16 +52,6 @@ type DirectSaleItemRow = {
   line_total: number | string
 }
 
-type DirectSaleSummary = {
-  id: string
-  customerName: string
-  saleDate: string
-  note: string
-  itemCount: number
-  totalQuantity: number
-  totalAmount: number
-}
-
 export default async function SalesPage({ searchParams }: SalesPageProps) {
   const params = await searchParams
   const query = getSingleSearchParam(params.q)?.trim() ?? ""
@@ -63,7 +59,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
   const error = getSingleSearchParam(params.error)
   const supabaseEnvReady = hasSupabaseEnv()
 
-  let sales: DirectSaleSummary[] = []
+  let sales: TradeSummary[] = []
   let loadError = ""
 
   if (supabaseEnvReady) {
@@ -98,50 +94,23 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
         } else if (itemsResponse.error) {
           loadError = itemsResponse.error.message
         } else {
-          const customerMap = new Map(
-            ((customersResponse.data ?? []) as CustomerRow[]).map((customer) => [
-              customer.id,
-              customer.name,
-            ])
+          sales = filterTradeSummaries(
+            buildSaleTradeSummaries(
+              rawSales.map((sale) => ({
+                id: sale.id,
+                customerId: sale.customer_id,
+                occurredAt: sale.sale_date,
+                note: sale.note,
+              })),
+              (customersResponse.data ?? []) as CustomerRow[],
+              ((itemsResponse.data ?? []) as DirectSaleItemRow[]).map((item) => ({
+                tradeId: item.direct_sale_id,
+                quantity: item.quantity,
+                lineTotal: item.line_total,
+              }))
+            ),
+            query
           )
-          const itemsBySaleId = new Map<string, DirectSaleItemRow[]>()
-
-          ;((itemsResponse.data ?? []) as DirectSaleItemRow[]).forEach((item) => {
-            const currentItems = itemsBySaleId.get(item.direct_sale_id) ?? []
-            currentItems.push(item)
-            itemsBySaleId.set(item.direct_sale_id, currentItems)
-          })
-
-          sales = rawSales.map((sale) => {
-            const items = itemsBySaleId.get(sale.id) ?? []
-
-            return {
-              id: sale.id,
-              customerName: customerMap.get(sale.customer_id) ?? "未知客戶",
-              saleDate: sale.sale_date,
-              note: sale.note ?? "",
-              itemCount: items.length,
-              totalQuantity: items.reduce(
-                (sum, item) => sum + toNumberValue(item.quantity),
-                0
-              ),
-              totalAmount: items.reduce(
-                (sum, item) => sum + toNumberValue(item.line_total),
-                0
-              ),
-            }
-          })
-
-          if (query) {
-            const normalizedQuery = query.toLowerCase()
-            sales = sales.filter((sale) => {
-              return (
-                sale.customerName.toLowerCase().includes(normalizedQuery) ||
-                sale.note.toLowerCase().includes(normalizedQuery) ||
-                sale.id.toLowerCase().includes(normalizedQuery)
-              )
-            })
-          }
         }
       }
     } catch (requestError) {
@@ -159,14 +128,15 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
   return (
     <div className="space-y-6">
       <PageIntro
-        eyebrow="Direct Sales"
+        eyebrow="交易管理"
         title="現場銷貨"
-        description="現場銷貨現在已經接上真實資料流程，可直接選客戶、帶出折扣建議價、手動覆寫成交單價，並在送出後即時扣庫存。"
-        badges={["門市銷貨", "價格可覆寫", "即時扣庫存"]}
         aside={
-          <Button asChild>
-            <Link href="/sales/new">新增銷貨</Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <TradeModuleSwitch active="sales" />
+            <Button asChild size="sm">
+              <Link href="/sales/new">新增交易</Link>
+            </Button>
+          </div>
         }
       />
 
@@ -248,9 +218,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                       <div className="font-medium text-foreground">
                         {sale.id.slice(0, 8).toUpperCase()}
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatDateTime(sale.saleDate)}
-                      </div>
+                      <div className="text-xs text-muted-foreground">{formatDateTime(sale.occurredAt)}</div>
                     </TableCell>
                     <TableCell>
                       <div className="font-medium text-foreground">{sale.customerName}</div>

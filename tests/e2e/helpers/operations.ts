@@ -3,12 +3,17 @@ import { expect, type Page } from "@playwright/test"
 export async function createCustomer(page: Page, customer: {
   name: string
   phone: string
+  address?: string
   type?: "general" | "vip" | "wholesale"
   discountRate?: string
 }) {
   await page.goto("/customers/new")
   await page.getByLabel("客戶名稱").fill(customer.name)
   await page.getByLabel("聯絡電話").fill(customer.phone)
+
+  if (customer.address) {
+    await page.getByLabel("地址").fill(customer.address)
+  }
 
   if (customer.type) {
     await page.getByLabel("客戶類型").selectOption(customer.type)
@@ -21,6 +26,32 @@ export async function createCustomer(page: Page, customer: {
   await page.getByRole("button", { name: "建立客戶" }).click()
   await expect(page).toHaveURL(/\/customers\?status=/)
   await expect(page.getByText(`已建立客戶：${customer.name}`)).toBeVisible()
+}
+
+export async function createSupplier(page: Page, supplier: {
+  name: string
+  phone?: string
+  address?: string
+  note?: string
+}) {
+  await page.goto("/suppliers/new")
+  await page.getByLabel("供應商名稱").fill(supplier.name)
+
+  if (supplier.phone) {
+    await page.getByLabel("聯絡電話").fill(supplier.phone)
+  }
+
+  if (supplier.address) {
+    await page.getByLabel("地址").fill(supplier.address)
+  }
+
+  if (supplier.note) {
+    await page.getByLabel("備註").fill(supplier.note)
+  }
+
+  await page.getByRole("button", { name: "建立供應商" }).click()
+  await expect(page).toHaveURL(/\/suppliers\?status=/)
+  await expect(page.getByText(`已建立供應商：${supplier.name}`)).toBeVisible()
 }
 
 export async function createProduct(page: Page, product: {

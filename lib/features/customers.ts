@@ -1,5 +1,7 @@
 import { z } from "zod"
 
+import type { TradeCustomerOption } from "@/lib/features/trades"
+
 export const customerTypeOptions = ["general", "vip", "wholesale"] as const
 
 const discountRateField = z
@@ -14,6 +16,7 @@ const discountRateField = z
 export const customerFormSchema = z.object({
   name: z.string().trim().min(1, "請輸入客戶名稱"),
   phone: z.string().trim().min(1, "請輸入聯絡電話"),
+  address: z.string().trim().max(500, "地址不可超過 500 字"),
   type: z.enum(customerTypeOptions),
   discountRate: discountRateField,
 })
@@ -24,6 +27,7 @@ export type CustomerType = (typeof customerTypeOptions)[number]
 export type CustomerFormValues = {
   name: string
   phone: string
+  address: string
   type: CustomerType
   discountRate: string
 }
@@ -34,10 +38,15 @@ export type CustomerFormState = {
   values: CustomerFormValues
 }
 
+export type QuickCreateCustomerFormState = CustomerFormState & {
+  createdCustomer: TradeCustomerOption | null
+}
+
 export type CustomerRecord = {
   id: string
   name: string
   phone: string
+  address?: string | null
   type: CustomerType
   discount_rate: number | string
   created_at?: string
@@ -47,6 +56,7 @@ export type CustomerRecord = {
 export const emptyCustomerFormValues: CustomerFormValues = {
   name: "",
   phone: "",
+  address: "",
   type: "general",
   discountRate: "1",
 }
@@ -65,12 +75,24 @@ export function createCustomerFormState(
   }
 }
 
+export function createQuickCustomerFormState(
+  values: Partial<CustomerFormValues> = {},
+  message = "",
+  createdCustomer: TradeCustomerOption | null = null
+): QuickCreateCustomerFormState {
+  return {
+    ...createCustomerFormState(values, message),
+    createdCustomer,
+  }
+}
+
 export function readCustomerFormValues(formData: FormData): CustomerFormValues {
   const typeValue = String(formData.get("type") ?? "general")
 
   return {
     name: String(formData.get("name") ?? ""),
     phone: String(formData.get("phone") ?? ""),
+    address: String(formData.get("address") ?? ""),
     type: customerTypeOptions.includes(typeValue as CustomerType)
       ? (typeValue as CustomerType)
       : "general",
@@ -84,17 +106,19 @@ export function getCustomerFieldErrors(error: z.ZodError<CustomerPayload>) {
   return {
     name: fieldErrors.name?.[0],
     phone: fieldErrors.phone?.[0],
+    address: fieldErrors.address?.[0],
     type: fieldErrors.type?.[0],
     discountRate: fieldErrors.discountRate?.[0],
   } satisfies Partial<Record<keyof CustomerFormValues, string>>
 }
 
 export function customerRecordToFormValues(
-  customer: Pick<CustomerRecord, "name" | "phone" | "type" | "discount_rate">
+  customer: Pick<CustomerRecord, "name" | "phone" | "address" | "type" | "discount_rate">
 ): CustomerFormValues {
   return {
     name: customer.name,
     phone: customer.phone,
+    address: customer.address ?? "",
     type: customer.type,
     discountRate: String(customer.discount_rate ?? "1"),
   }

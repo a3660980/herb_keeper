@@ -4,6 +4,7 @@ import { registerAndLogin } from "./helpers/auth"
 import { runWithE2ECleanup } from "./helpers/cleanup"
 import { createUniquePhone, createUniqueSuffix } from "./helpers/factories"
 import { createCustomer, createProduct, searchCustomer, searchProduct } from "./helpers/operations"
+import { selectSearchableOption } from "./helpers/searchable-select"
 
 test("operator can complete the core customer, product, order, shipment, and sale flow", async ({ page }) => {
   const suffix = createUniqueSuffix()
@@ -33,13 +34,21 @@ test("operator can complete the core customer, product, order, shipment, and sal
       await expect(page.getByRole("cell", { name: productName })).toBeVisible()
 
       await page.goto("/orders/new")
-      await page.locator("#customerId").selectOption({
-        label: `${customerName} (${customerPhone})`,
+      await selectSearchableOption(page, {
+        trigger: page.locator("#customerId"),
+        searchPlaceholder: "搜尋客戶名稱或電話",
+        query: customerName,
+        optionName: `${customerName} (${customerPhone})`,
       })
       await expect(page.locator("#orderDate")).toHaveValue(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/)
 
       const orderLine = page.getByTestId("order-line").first()
-      await orderLine.getByLabel("訂單明細 1 藥材").selectOption({ label: "黃耆" })
+      await selectSearchableOption(page, {
+        trigger: orderLine.getByLabel("訂單明細 1 藥材"),
+        searchPlaceholder: "搜尋藥材名稱",
+        query: "黃耆",
+        optionName: "黃耆",
+      })
       await orderLine.getByLabel("訂單明細 1 訂購數量").fill("2")
       await orderLine.getByLabel("訂單明細 1 成交單價").fill("52")
       await page.getByLabel("備註").fill("Playwright 訂單流程驗證")
@@ -58,13 +67,21 @@ test("operator can complete the core customer, product, order, shipment, and sal
       await expect(page.getByText("部分出貨").first()).toBeVisible()
 
       await page.goto("/sales/new")
-      await page.locator("#customerId").selectOption({
-        label: `${customerName} (${customerPhone})`,
+      await selectSearchableOption(page, {
+        trigger: page.locator("#customerId"),
+        searchPlaceholder: "搜尋客戶名稱或電話",
+        query: customerName,
+        optionName: `${customerName} (${customerPhone})`,
       })
       await expect(page.locator("#saleDate")).toHaveValue(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/)
 
       const saleLine = page.getByTestId("sale-line").first()
-      await saleLine.getByLabel("銷貨明細 1 藥材").selectOption({ label: "黃耆" })
+      await selectSearchableOption(page, {
+        trigger: saleLine.getByLabel("銷貨明細 1 藥材"),
+        searchPlaceholder: "搜尋藥材名稱",
+        query: "黃耆",
+        optionName: "黃耆",
+      })
       await saleLine.getByLabel("銷貨明細 1 銷貨數量").fill("1")
       await saleLine.getByLabel("銷貨明細 1 成交單價").fill("52")
       await page.getByLabel("備註").fill("Playwright 現場銷貨驗證")

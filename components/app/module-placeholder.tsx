@@ -50,8 +50,17 @@ export function ModulePlaceholder({
         eyebrow={eyebrow}
         title={title}
         description={description}
-        badges={badges}
       />
+
+      {badges.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {badges.map((badge) => (
+            <Badge key={badge} variant="outline">
+              {badge}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_24rem]">
         <Card className="border border-border/60 bg-card/85 shadow-sm backdrop-blur">

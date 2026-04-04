@@ -2,6 +2,7 @@ import Link from "next/link"
 
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
+import { TradeModuleSwitch } from "@/components/app/trade-module-switch"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -20,7 +21,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { formatCurrency, formatDateTime, formatQuantity, toNumberValue } from "@/lib/format"
+import { formatCurrency, formatDateTime, formatQuantity } from "@/lib/format"
+import {
+  buildOrderTradeSummaries,
+  filterTradeSummaries,
+  type TradeSummary,
+} from "@/lib/features/trades"
 import {
   orderStatusLabels,
   orderStatusOptions,
@@ -54,19 +60,6 @@ type OrderItemRow = {
   final_unit_price: number | string
 }
 
-type OrderSummary = {
-  id: string
-  customerName: string
-  orderDate: string
-  status: OrderStatus
-  note: string
-  itemCount: number
-  orderedQuantity: number
-  shippedQuantity: number
-  remainingQuantity: number
-  orderAmount: number
-}
-
 function getStatusVariant(status: OrderStatus) {
   if (status === "completed") {
     return "secondary"
@@ -87,7 +80,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   const error = getSingleSearchParam(params.error)
   const supabaseEnvReady = hasSupabaseEnv()
 
-  let orders: OrderSummary[] = []
+  let orders: TradeSummary[] = []
   let loadError = ""
 
   if (supabaseEnvReady) {
@@ -133,62 +126,25 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
         } else if (orderItemsResponse.error) {
           loadError = orderItemsResponse.error.message
         } else {
-          const customerMap = new Map(
-            ((customersResponse.data ?? []) as CustomerRow[]).map((customer) => [
-              customer.id,
-              customer.name,
-            ])
+          orders = filterTradeSummaries(
+            buildOrderTradeSummaries(
+              rawOrders.map((order) => ({
+                id: order.id,
+                customerId: order.customer_id,
+                occurredAt: order.order_date,
+                status: order.status,
+                note: order.note,
+              })),
+              (customersResponse.data ?? []) as CustomerRow[],
+              ((orderItemsResponse.data ?? []) as OrderItemRow[]).map((item) => ({
+                tradeId: item.order_id,
+                quantity: item.ordered_quantity,
+                fulfilledQuantity: item.shipped_quantity,
+                unitPrice: item.final_unit_price,
+              }))
+            ),
+            query
           )
-          const itemsByOrderId = new Map<string, OrderItemRow[]>()
-
-          ;((orderItemsResponse.data ?? []) as OrderItemRow[]).forEach((item) => {
-            const currentItems = itemsByOrderId.get(item.order_id) ?? []
-            currentItems.push(item)
-            itemsByOrderId.set(item.order_id, currentItems)
-          })
-
-          orders = rawOrders.map((order) => {
-            const items = itemsByOrderId.get(order.id) ?? []
-            const orderedQuantity = items.reduce(
-              (total, item) => total + toNumberValue(item.ordered_quantity),
-              0
-            )
-            const shippedQuantity = items.reduce(
-              (total, item) => total + toNumberValue(item.shipped_quantity),
-              0
-            )
-            const orderAmount = items.reduce(
-              (total, item) =>
-                total +
-                toNumberValue(item.ordered_quantity) *
-                  toNumberValue(item.final_unit_price),
-              0
-            )
-
-            return {
-              id: order.id,
-              customerName: customerMap.get(order.customer_id) ?? "未知客戶",
-              orderDate: order.order_date,
-              status: order.status,
-              note: order.note ?? "",
-              itemCount: items.length,
-              orderedQuantity,
-              shippedQuantity,
-              remainingQuantity: Math.max(orderedQuantity - shippedQuantity, 0),
-              orderAmount,
-            }
-          })
-
-          if (query) {
-            const normalizedQuery = query.toLowerCase()
-            orders = orders.filter((order) => {
-              return (
-                order.customerName.toLowerCase().includes(normalizedQuery) ||
-                order.note.toLowerCase().includes(normalizedQuery) ||
-                order.id.toLowerCase().includes(normalizedQuery)
-              )
-            })
-          }
         }
       }
     } catch (error) {
@@ -204,14 +160,15 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   return (
     <div className="space-y-6">
       <PageIntro
-        eyebrow="Orders & Shipments"
+        eyebrow="交易管理"
         title="訂單與部分出貨"
-        description="集中管理訂單與出貨進度，建立訂單後可分批履約，並隨時掌握每張訂單的剩餘待出貨數量。"
-        badges={["分次出貨", "履約追蹤", "狀態同步"]}
         aside={
-          <Button asChild>
-            <Link href="/orders/new">新增訂單</Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <TradeModuleSwitch active="orders" />
+            <Button asChild size="sm">
+              <Link href="/orders/new">新增交易</Link>
+            </Button>
+          </div>
         }
       />
 
@@ -306,9 +263,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
                       <div className="font-medium text-foreground">
                         {order.id.slice(0, 8).toUpperCase()}
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatDateTime(order.orderDate)}
-                      </div>
+                      <div className="text-xs text-muted-foreground">{formatDateTime(order.occurredAt)}</div>
                     </TableCell>
                     <TableCell>
                       <div className="font-medium text-foreground">
@@ -325,16 +280,21 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
                     </TableCell>
                     <TableCell>{order.itemCount}</TableCell>
                     <TableCell>
-                      {formatQuantity(order.shippedQuantity)} / {formatQuantity(order.orderedQuantity)}
+                      {formatQuantity(order.fulfilledQuantity)} / {formatQuantity(order.totalQuantity)}
                     </TableCell>
-                    <TableCell>{formatCurrency(order.orderAmount)}</TableCell>
+                    <TableCell>{formatCurrency(order.totalAmount)}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-2">
                         <Button asChild size="sm" variant="outline">
                           <Link href={`/orders/${order.id}`}>查看</Link>
                         </Button>
-                        {order.remainingQuantity > 0 ? (
+                        {order.status === "pending" ? (
                           <Button asChild size="sm" variant="secondary">
+                            <Link href={`/orders/${order.id}/edit`}>修改</Link>
+                          </Button>
+                        ) : null}
+                        {order.remainingQuantity > 0 ? (
+                          <Button asChild size="sm">
                             <Link href={`/orders/${order.id}#shipment-form`}>出貨</Link>
                           </Button>
                         ) : null}

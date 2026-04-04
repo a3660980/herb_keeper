@@ -9,6 +9,7 @@ import {
   createProductFormState,
   productRecordToFormValues,
   type ProductRecord,
+  type ProductUnitRecord,
 } from "@/lib/features/products"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
@@ -28,17 +29,21 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
   }
 
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("products")
-    .select("id, name, base_price, low_stock_threshold, unit")
-    .eq("id", id)
-    .maybeSingle()
+  const [{ data, error }, unitsResponse] = await Promise.all([
+    supabase
+      .from("products")
+      .select("id, name, base_price, low_stock_threshold, unit")
+      .eq("id", id)
+      .maybeSingle(),
+    supabase.from("product_units").select("id, name").order("name"),
+  ])
 
   if (error || !data) {
     notFound()
   }
 
   const product = data as ProductRecord
+  const units = (unitsResponse.data ?? []) as ProductUnitRecord[]
   const boundAction = updateProductAction.bind(null, id)
 
   return (
@@ -46,7 +51,6 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
       <PageIntro
         eyebrow="Products"
         title={`編輯藥材：${product.name}`}
-        description="更新藥材名稱、基準售價與低庫存門檻。平均成本與實際庫存仍由交易與進貨流程控制。"
         aside={
           <div className="flex flex-wrap gap-3">
             <Button asChild variant="outline">
@@ -64,6 +68,7 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
           <ProductForm
             action={boundAction}
             initialState={createProductFormState(productRecordToFormValues(product))}
+            units={units}
             submitLabel="儲存變更"
             pendingLabel="儲存中..."
           />

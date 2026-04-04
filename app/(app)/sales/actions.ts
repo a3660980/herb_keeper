@@ -55,6 +55,7 @@ export async function createDirectSaleAction(
   const submission = readSaleFormSubmission(formData)
   const values = submission.values
   const parsed = saleFormSchema.safeParse(values)
+  let productIds: string[] = []
 
   if (!parsed.success) {
     const { fieldErrors, itemErrors } = getSaleFieldErrors(parsed.error, values)
@@ -87,7 +88,7 @@ export async function createDirectSaleAction(
 
   try {
     const supabase = await createClient()
-    const productIds = Array.from(new Set(parsed.data.items.map((item) => item.productId)))
+    productIds = Array.from(new Set(parsed.data.items.map((item) => item.productId)))
     const { data: stockRows, error: stockError } = await supabase
       .from("current_inventory_view")
       .select("product_id, ledger_stock_quantity")
@@ -154,9 +155,13 @@ export async function createDirectSaleAction(
   }
 
   revalidatePath("/dashboard")
+  revalidatePath("/products")
   revalidatePath("/sales")
   revalidatePath("/inventory")
   revalidatePath("/reports")
+  productIds.forEach((productId) => {
+    revalidatePath(`/products/${productId}`)
+  })
   redirect(
     withQueryString(`/sales/${directSaleId}`, {
       status: "已建立現場銷貨，庫存與報表資料已同步更新。",

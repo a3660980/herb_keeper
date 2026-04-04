@@ -50,6 +50,38 @@ function getOrderActionErrorMessage(error: { code?: string; message: string }) {
   return error.message || "建立訂單失敗，請稍後再試。"
 }
 
+function getUpdateOrderActionErrorMessage(error: { code?: string; message: string }) {
+  if (error.code === "PGRST202") {
+    return "Orders update workflow 的資料庫函式尚未部署，請先套用最新 migration。"
+  }
+
+  if (error.message.includes("Only orders without shipment history can be updated")) {
+    return "已有出貨紀錄的訂單不可修改，避免影響履歷與庫存。"
+  }
+
+  if (error.message.includes("Order") && error.message.includes("not found")) {
+    return "這張訂單已不存在，請返回列表後重新操作。"
+  }
+
+  if (error.message.includes("At least one order item is required")) {
+    return "至少加入一筆藥材明細。"
+  }
+
+  if (error.message.includes("Duplicate products are not allowed")) {
+    return "同一張訂單不可重複加入同一藥材。"
+  }
+
+  if (error.message.includes("Customer") && error.message.includes("not found")) {
+    return "選取的客戶不存在，請重新整理後再試。"
+  }
+
+  if (error.message.includes("Product") && error.message.includes("not found")) {
+    return "部分藥材不存在，請重新整理後再試。"
+  }
+
+  return error.message || "修改訂單失敗，請稍後再試。"
+}
+
 function getShipmentActionErrorMessage(error: { code?: string; message: string }) {
   if (error.code === "PGRST202") {
     return "Shipment workflow 的資料庫函式尚未部署，請先套用最新 migration。"
@@ -147,6 +179,73 @@ export async function createOrderAction(
   )
 }
 
+export async function updateOrderAction(
+  orderId: string,
+  _previousState: OrderFormState,
+  formData: FormData
+) {
+  const submission = readOrderFormSubmission(formData)
+  const values = submission.values
+  const parsed = orderFormSchema.safeParse(values)
+
+  if (!parsed.success) {
+    const { fieldErrors, itemErrors } = getOrderFieldErrors(parsed.error, values)
+
+    return {
+      message: "請修正訂單欄位後再送出。",
+      fieldErrors,
+      itemErrors,
+      values,
+    } satisfies OrderFormState
+  }
+
+  const orderDateIso = localDateTimeToIsoString(
+    parsed.data.orderDate,
+    submission.timezoneOffsetMinutes
+  )
+
+  if (!orderDateIso) {
+    return {
+      message: "請修正訂單欄位後再送出。",
+      fieldErrors: {
+        orderDate: "下單時間格式不正確",
+      },
+      itemErrors: {},
+      values,
+    } satisfies OrderFormState
+  }
+
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase.rpc("update_order_with_items", {
+      p_order_id: orderId,
+      p_customer_id: parsed.data.customerId,
+      p_order_date: orderDateIso,
+      p_note: parsed.data.note || null,
+      p_items: orderPayloadToRpcItems(parsed.data),
+    })
+
+    if (error) {
+      return createOrderFormState(values, getUpdateOrderActionErrorMessage(error))
+    }
+
+    if (!data) {
+      return createOrderFormState(values, "修改訂單失敗，系統未回傳訂單編號。")
+    }
+  } catch (error) {
+    return createOrderFormState(values, getUnexpectedErrorMessage(error))
+  }
+
+  revalidatePath("/orders")
+  revalidatePath(`/orders/${orderId}`)
+  revalidatePath(`/orders/${orderId}/edit`)
+  redirect(
+    withQueryString(`/orders/${orderId}`, {
+      status: "已更新訂單內容。",
+    })
+  )
+}
+
 export async function createShipmentAction(
   orderId: string,
   _previousState: ShipmentFormState,
@@ -155,6 +254,7 @@ export async function createShipmentAction(
   const submission = readShipmentFormSubmission(formData)
   const values = submission.values
   const parsed = shipmentFormSchema.safeParse(values)
+  let productIds: string[] = []
 
   if (!parsed.success) {
     const { fieldErrors, itemErrors } = getShipmentFieldErrors(parsed.error, values)
@@ -201,7 +301,7 @@ export async function createShipmentAction(
       )
     }
 
-    const productIds = Array.from(
+    productIds = Array.from(
       new Set((currentItems ?? []).map((item) => String(item.product_id)))
     )
 
@@ -293,9 +393,13 @@ export async function createShipmentAction(
 
   revalidatePath("/orders")
   revalidatePath(`/orders/${orderId}`)
+  revalidatePath("/products")
+  productIds.forEach((productId) => {
+    revalidatePath(`/products/${productId}`)
+  })
   redirect(
-    withQueryString(`/orders/${orderId}`, {
-      status: "已建立出貨批次，庫存與訂單狀態已同步更新。",
-    })
+    `${withQueryString(`/orders/${orderId}`, {
+      status: "出貨完成，庫存與訂單狀態已同步更新。",
+    })}#shipment-form`
   )
 }

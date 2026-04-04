@@ -60,13 +60,13 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
       const supabase = await createClient()
       let request = supabase
         .from("customers")
-        .select("id, name, phone, type, discount_rate, updated_at")
+        .select("id, name, phone, address, type, discount_rate, updated_at")
         .order("name")
 
       if (query) {
         const normalizedQuery = normalizeCustomerQuery(query)
         request = request.or(
-          `name.ilike.%${normalizedQuery}%,phone.ilike.%${normalizedQuery}%`
+          `name.ilike.%${normalizedQuery}%,phone.ilike.%${normalizedQuery}%,address.ilike.%${normalizedQuery}%`
         )
       }
 
@@ -102,8 +102,6 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
       <PageIntro
         eyebrow="Customers"
         title="客戶管理"
-        description="依名稱、電話與客戶類型管理聯絡資料與折扣設定，方便門市與批發報價快速帶入。"
-        badges={["聯絡資料", "折扣設定", "客戶分類"]}
         aside={
           <Button asChild>
             <Link href="/customers/new">新增客戶</Link>
@@ -189,6 +187,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                 <TableRow>
                   <TableHead>客戶</TableHead>
                   <TableHead>電話</TableHead>
+                  <TableHead>地址</TableHead>
                   <TableHead>類型</TableHead>
                   <TableHead>折扣倍率</TableHead>
                   <TableHead>操作</TableHead>
@@ -201,6 +200,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                       {customer.name}
                     </TableCell>
                     <TableCell>{customer.phone}</TableCell>
+                    <TableCell>{customer.address || "-"}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{customerTypeLabels[customer.type]}</Badge>
                     </TableCell>

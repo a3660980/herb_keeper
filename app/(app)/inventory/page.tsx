@@ -112,8 +112,6 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
       <PageIntro
         eyebrow="Inventory"
         title="庫存總覽"
-        description="集中查看各品項庫存、平均成本、低庫存提醒與帳存差異，方便補貨與盤點。"
-        badges={["庫存追蹤", "低庫存提醒", "帳存差異"]}
         aside={
           <Button asChild variant="outline">
             <Link href="/products">前往藥材管理</Link>

@@ -10,6 +10,14 @@ import {
   readProductFormValues,
   type ProductFormState,
 } from "@/lib/features/products"
+import {
+  createProductUnitFormState,
+  emptyProductUnitFormValues,
+  getProductUnitFieldErrors,
+  productUnitFormSchema,
+  readProductUnitFormValues,
+  type ProductUnitFormState,
+} from "@/lib/features/product-units"
 import { createClient } from "@/lib/supabase/server"
 import { withQueryString } from "@/lib/url"
 
@@ -27,6 +35,14 @@ function getProductErrorMessage(error: { code?: string; message: string }, name:
 
 function getUnexpectedErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "發生未預期錯誤，請稍後再試。"
+}
+
+function getProductUnitErrorMessage(error: { code?: string; message: string }, name: string) {
+  if (error.code === "23505") {
+    return `單位「${name}」已存在。`
+  }
+
+  return error.message || "新增單位失敗，請稍後再試。"
 }
 
 export async function createProductAction(
@@ -112,12 +128,62 @@ export async function updateProductAction(
   }
 
   revalidatePath("/products")
+  revalidatePath(`/products/${productId}`)
   revalidatePath(`/products/${productId}/edit`)
   redirect(
     withQueryString("/products", {
       status: `已更新藥材：${parsed.data.name}`,
     })
   )
+}
+
+export async function createProductUnitAction(
+  _previousState: ProductUnitFormState,
+  formData: FormData
+) {
+  const values = readProductUnitFormValues(formData)
+  const parsed = productUnitFormSchema.safeParse(values)
+
+  if (!parsed.success) {
+    return {
+      message: "請修正單位欄位後再送出。",
+      fieldErrors: getProductUnitFieldErrors(parsed.error),
+      values,
+      createdUnit: null,
+    } satisfies ProductUnitFormState
+  }
+
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from("product_units")
+      .insert({
+        name: parsed.data.name,
+      })
+      .select("id, name")
+      .single()
+
+    if (error) {
+      return createProductUnitFormState(
+        values,
+        getProductUnitErrorMessage(error, parsed.data.name)
+      )
+    }
+
+    revalidatePath("/products")
+    revalidatePath("/products/new")
+
+    return createProductUnitFormState(
+      emptyProductUnitFormValues,
+      `已新增單位：${parsed.data.name}`,
+      {
+        id: data.id,
+        name: data.name,
+      }
+    )
+  } catch (error) {
+    return createProductUnitFormState(values, getUnexpectedErrorMessage(error))
+  }
 }
 
 export async function deleteProductAction(formData: FormData) {

@@ -157,8 +157,6 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       <PageIntro
         eyebrow="Reports"
         title="報表分析"
-        description="快速查看日報、月報、熱銷排行與近期交易，掌握營收、成本與毛利變化。"
-        badges={["日報 / 月報", "交易明細", "平均成本"]}
         aside={
           <Button asChild variant="outline">
             <a href="#recent-transactions">查看交易明細</a>

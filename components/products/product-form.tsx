@@ -1,12 +1,13 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useEffect, useEffectEvent, useState } from "react"
 
 import { FormMessage } from "@/components/app/form-message"
 import { SubmitButton } from "@/components/app/submit-button"
+import { QuickCreateProductUnitSheet } from "@/components/products/quick-create-product-unit-sheet"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import type { ProductFormState } from "@/lib/features/products"
+import type { ProductFormState, ProductUnitRecord } from "@/lib/features/products"
 
 type ProductFormProps = {
   action: (
@@ -14,17 +15,35 @@ type ProductFormProps = {
     formData: FormData
   ) => Promise<ProductFormState>
   initialState: ProductFormState
+  units: ProductUnitRecord[]
   submitLabel: string
   pendingLabel: string
 }
 
+const selectClassName =
+  "flex h-11 w-full rounded-[1.15rem] border border-border/70 bg-background/78 px-4 py-2 text-base text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] outline-none transition-[color,box-shadow,background-color,border-color] focus-visible:border-primary/30 focus-visible:ring-4 focus-visible:ring-ring/15 sm:text-sm"
+
 export function ProductForm({
   action,
   initialState,
+  units,
   submitLabel,
   pendingLabel,
 }: ProductFormProps) {
   const [state, formAction] = useActionState(action, initialState)
+  const [unitOptions, setUnitOptions] = useState(units)
+  const [selectedUnit, setSelectedUnit] = useState(state.values.unit)
+  const syncSelectedUnit = useEffectEvent((nextUnit: string) => {
+    setSelectedUnit(nextUnit)
+  })
+
+  useEffect(() => {
+    setUnitOptions(units)
+  }, [units])
+
+  useEffect(() => {
+    syncSelectedUnit(state.values.unit)
+  }, [state.values.unit])
 
   return (
     <form action={formAction} className="space-y-6">
@@ -73,9 +92,44 @@ export function ProductForm({
 
         <div className="space-y-2">
           <Label htmlFor="unit">單位</Label>
-          <Input id="unit" name="unit" value="g" readOnly />
+          <div className="flex flex-col gap-2 md:flex-row">
+            <select
+              id="unit"
+              name="unit"
+              value={selectedUnit}
+              className={selectClassName}
+              onChange={(event) => {
+                setSelectedUnit(event.target.value)
+              }}
+            >
+              <option value="">請選擇單位</option>
+              {unitOptions.map((unit) => (
+                <option key={unit.id} value={unit.name}>
+                  {unit.name}
+                </option>
+              ))}
+            </select>
+            <QuickCreateProductUnitSheet
+              onCreated={(unit) => {
+                setUnitOptions((current) => {
+                  const nextUnits = [...current.filter((item) => item.id !== unit.id), unit]
+
+                  nextUnits.sort((left, right) =>
+                    left.name.localeCompare(right.name, "zh-Hant")
+                  )
+
+                  return nextUnits
+                })
+                setSelectedUnit(unit.name)
+              }}
+              triggerClassName="self-start md:shrink-0"
+            />
+          </div>
+          {state.fieldErrors.unit ? (
+            <p className="text-sm text-destructive">{state.fieldErrors.unit}</p>
+          ) : null}
           <p className="text-sm text-muted-foreground">
-            目前系統固定以公克為單位，後續若有多單位需求再擴充。
+            常用單位可直接選擇，若現場需要新的單位，也可以在這裡即時新增。
           </p>
         </div>
 

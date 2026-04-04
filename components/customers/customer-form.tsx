@@ -6,6 +6,7 @@ import { FormMessage } from "@/components/app/form-message"
 import { SubmitButton } from "@/components/app/submit-button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
   customerTypeOptions,
   type CustomerFormState,
@@ -56,6 +57,14 @@ export function CustomerForm({
           <Input id="phone" name="phone" defaultValue={state.values.phone} />
           {state.fieldErrors.phone ? (
             <p className="text-sm text-destructive">{state.fieldErrors.phone}</p>
+          ) : null}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="address">地址</Label>
+          <Textarea id="address" name="address" defaultValue={state.values.address} />
+          {state.fieldErrors.address ? (
+            <p className="text-sm text-destructive">{state.fieldErrors.address}</p>
           ) : null}
         </div>
 

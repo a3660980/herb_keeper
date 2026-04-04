@@ -242,30 +242,30 @@ export default async function OrderDetailPage({
   }))
   const boundShipmentAction = createShipmentAction.bind(null, id)
   const itemMap = new Map(items.map((item) => [item.orderItemId, item]))
+  const canEditOrder = order.status === "pending" && totalShippedQuantity === 0 && shipments.length === 0
 
   return (
     <div className="space-y-6">
       <PageIntro
-        eyebrow="Orders & Shipments"
+        eyebrow="交易管理"
         title={`訂單 ${id.slice(0, 8).toUpperCase()}`}
-        description="查看訂購、累計出貨與剩餘待出貨數量，並直接在同頁建立部分出貨。"
-        badges={[
-          `狀態：${orderStatusLabels[order.status]}`,
-          `下單時間：${formatDateTime(order.order_date)}`,
-        ]}
         aside={
           <div className="flex flex-wrap gap-3">
             <Button asChild variant="outline">
               <Link href="/orders">返回訂單列表</Link>
             </Button>
+            {canEditOrder ? (
+              <Button asChild variant="secondary">
+                <Link href={`/orders/${id}/edit`}>修改訂單</Link>
+              </Button>
+            ) : null}
             <Button asChild>
-              <Link href="/orders/new">新增訂單</Link>
+              <Link href="/orders/new">新增交易</Link>
             </Button>
           </div>
         }
       />
 
-      {status ? <FormMessage message={status} tone="success" /> : null}
       {error ? <FormMessage message={error} tone="error" /> : null}
       {loadError ? <FormMessage message={loadError} tone="error" /> : null}
 
@@ -413,6 +413,8 @@ export default async function OrderDetailPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {status ? <FormMessage message={status} tone="success" className="mb-4" /> : null}
+
           {remainingItems.length === 0 ? (
             <FormMessage
               message="這張訂單已全部出貨完成，不需要再建立 shipment。"

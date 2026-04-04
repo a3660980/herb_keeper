@@ -6,6 +6,7 @@ import {
   getOrderFieldErrors,
   getShipmentFieldErrors,
   localDateTimeToIsoString,
+  orderRecordToFormValues,
   orderFormSchema,
   orderPayloadToRpcItems,
   readOrderFormSubmission,
@@ -135,6 +136,36 @@ describe("lib/features/orders", () => {
         product_id: productId,
         ordered_quantity: 2,
         final_unit_price: 52,
+      },
+    ])
+  })
+
+  it("builds editable order form values from an existing order", () => {
+    const values = orderRecordToFormValues(
+      {
+        customerId,
+        orderDate: "2026-04-04T06:36:00.000Z",
+        note: "保留原訂單內容",
+      },
+      [
+        {
+          id: orderItemId,
+          productId,
+          orderedQuantity: 2.5,
+          finalUnitPrice: 52,
+        },
+      ]
+    )
+
+    expect(values.customerId).toBe(customerId)
+    expect(values.note).toBe("保留原訂單內容")
+    expect(values.orderDate).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
+    expect(values.items).toEqual([
+      {
+        id: orderItemId,
+        productId,
+        orderedQuantity: "2.5",
+        finalUnitPrice: "52",
       },
     ])
   })

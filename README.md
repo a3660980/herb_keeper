@@ -178,6 +178,8 @@ pnpm exec playwright install chromium
 ## 目前已完成的功能切片
 
 - Products CRUD
+- Inbounds 進貨歷史與供應商追蹤
+- Inbounds 進貨建立
 - Customers CRUD
 - Orders 建立與訂單詳情
 - Partial shipment 出貨流程
@@ -204,6 +206,6 @@ pnpm exec playwright install chromium
 
 接下來可往更完整的上線硬化推進：
 
-- 盤點與補齊進貨 / 庫存調整 UI
+- 盤點與補齊庫存調整 UI
 - 為角色管理補一個 admin-only 的後台頁
 - 增加端對端 smoke test，固定驗證 direct sales / order shipment 主流程

@@ -9,6 +9,7 @@ export type E2ECleanupTargets = {
   customerNames?: string[]
   customerPhones?: string[]
   productNames?: string[]
+  supplierNames?: string[]
 }
 
 const EMAIL_OTP_TYPES: EmailOtpType[] = [
@@ -232,6 +233,28 @@ export async function cleanupE2EData(targets: E2ECleanupTargets) {
         .in("id", productIds)
 
       throwIfError(deleteProductsError, "Failed to delete E2E products")
+    }
+  }
+
+  const supplierNames = getUniqueValues(targets.supplierNames)
+
+  if (supplierNames.length > 0) {
+    const { data: suppliers, error: suppliersError } = await supabase
+      .from("suppliers")
+      .select("id")
+      .in("name", supplierNames)
+
+    throwIfError(suppliersError, "Failed to load E2E suppliers")
+
+    const supplierIds = collectIds(suppliers)
+
+    if (supplierIds.length > 0) {
+      const { error: deleteSuppliersError } = await supabase
+        .from("suppliers")
+        .delete()
+        .in("id", supplierIds)
+
+      throwIfError(deleteSuppliersError, "Failed to delete E2E suppliers")
     }
   }
 }

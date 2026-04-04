@@ -20,7 +20,7 @@ export const productFormSchema = z.object({
   name: z.string().trim().min(1, "請輸入藥材名稱"),
   basePrice: productPriceField,
   lowStockThreshold: productThresholdField,
-  unit: z.literal("g"),
+  unit: z.string().trim().min(1, "請選擇單位"),
 })
 
 export type ProductPayload = z.output<typeof productFormSchema>
@@ -29,7 +29,12 @@ export type ProductFormValues = {
   name: string
   basePrice: string
   lowStockThreshold: string
-  unit: "g"
+  unit: string
+}
+
+export type ProductUnitRecord = {
+  id: string
+  name: string
 }
 
 export type ProductFormState = {
@@ -63,7 +68,7 @@ export const emptyProductFormValues: ProductFormValues = {
   name: "",
   basePrice: "",
   lowStockThreshold: "0",
-  unit: "g",
+  unit: "",
 }
 
 export function createProductFormState(
@@ -76,7 +81,6 @@ export function createProductFormState(
     values: {
       ...emptyProductFormValues,
       ...values,
-      unit: "g",
     },
   }
 }
@@ -86,7 +90,7 @@ export function readProductFormValues(formData: FormData): ProductFormValues {
     name: String(formData.get("name") ?? ""),
     basePrice: String(formData.get("basePrice") ?? ""),
     lowStockThreshold: String(formData.get("lowStockThreshold") ?? ""),
-    unit: "g",
+    unit: String(formData.get("unit") ?? "").trim(),
   }
 }
 
@@ -108,6 +112,6 @@ export function productRecordToFormValues(
     name: product.name,
     basePrice: String(product.base_price ?? ""),
     lowStockThreshold: String(product.low_stock_threshold ?? "0"),
-    unit: product.unit === "g" ? "g" : "g",
+    unit: String(product.unit ?? "").trim(),
   }
 }

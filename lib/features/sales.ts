@@ -1,5 +1,14 @@
 import { z } from "zod"
 
+import {
+  getCurrentDateTimeLocalValue,
+  localDateTimeToIsoString,
+  type TradeCustomerOption,
+  type TradeProductOption,
+} from "@/lib/features/trades"
+
+export { getCurrentDateTimeLocalValue, localDateTimeToIsoString }
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
@@ -97,56 +106,14 @@ export type SaleFormState = {
   values: SaleFormValues
 }
 
-export type SaleCustomerOption = {
-  id: string
-  name: string
-  phone: string
-  discountRate: number
-}
+export type SaleCustomerOption = TradeCustomerOption
 
-export type SaleProductOption = {
-  id: string
-  name: string
-  basePrice: number
-  unit: string
-  availableStock: number
-  isLowStock: boolean
-}
+export type SaleProductOption = TradeProductOption
 
 export type DirectSaleRpcItem = {
   product_id: string
   quantity: number
   final_unit_price: number
-}
-
-export function getCurrentDateTimeLocalValue(date = new Date()) {
-  const offset = date.getTimezoneOffset()
-  const localDate = new Date(date.getTime() - offset * 60_000)
-
-  return localDate.toISOString().slice(0, 16)
-}
-
-export function localDateTimeToIsoString(
-  value: string,
-  timezoneOffsetMinutes: number
-) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value)
-
-  if (!match) {
-    return null
-  }
-
-  const [, year, month, day, hour, minute] = match
-  const utcTimestamp =
-    Date.UTC(
-      Number(year),
-      Number(month) - 1,
-      Number(day),
-      Number(hour),
-      Number(minute)
-    ) + timezoneOffsetMinutes * 60_000
-
-  return new Date(utcTimestamp).toISOString()
 }
 
 export function createSaleLineFormValue(

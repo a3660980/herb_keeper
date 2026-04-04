@@ -1,6 +1,7 @@
 export type AppNavigationItem = {
   title: string
   href: string
+  matchPrefixes?: string[]
 }
 
 export const mainNavigation: AppNavigationItem[] = [
@@ -17,12 +18,13 @@ export const mainNavigation: AppNavigationItem[] = [
     href: "/customers",
   },
   {
-    title: "訂單出貨",
-    href: "/orders",
+    title: "供應商管理",
+    href: "/suppliers",
   },
   {
-    title: "現場銷貨",
-    href: "/sales",
+    title: "交易管理",
+    href: "/orders",
+    matchPrefixes: ["/orders", "/sales"],
   },
   {
     title: "庫存總覽",
