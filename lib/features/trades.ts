@@ -1,7 +1,7 @@
 import { toNumberValue } from "@/lib/format"
 
 export type TradeKind = "order" | "sale"
-export type TradeStatus = "pending" | "partial" | "completed"
+export type TradeStatus = "pending" | "partial" | "completed" | "canceled"
 
 export type TradeCustomerOption = {
   id: string

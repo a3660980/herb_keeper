@@ -10,7 +10,7 @@ import { formatQuantity } from "@/lib/format"
 
 export { getCurrentDateTimeLocalValue, localDateTimeToIsoString }
 
-export const orderStatusOptions = ["pending", "partial", "completed"] as const
+export const orderStatusOptions = ["pending", "partial", "completed", "canceled"] as const
 
 export type OrderStatus = (typeof orderStatusOptions)[number]
 
@@ -18,6 +18,7 @@ export const orderStatusLabels: Record<OrderStatus, string> = {
   pending: "待出貨",
   partial: "部分出貨",
   completed: "已完成",
+  canceled: "已撤銷",
 }
 
 export type OrderLineFormValues = {

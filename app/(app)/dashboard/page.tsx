@@ -116,6 +116,10 @@ function getOrderStatusVariant(status: OrderStatus) {
     return "default"
   }
 
+  if (status === "canceled") {
+    return "destructive"
+  }
+
   return "outline"
 }
 
@@ -282,7 +286,12 @@ export default async function DashboardPage() {
                 orderAmount,
               }
             })
-            .filter((order) => order.status !== "completed" && order.remainingQuantity > 0)
+            .filter(
+              (order) =>
+                order.status !== "completed" &&
+                order.status !== "canceled" &&
+                order.remainingQuantity > 0
+            )
             .sort((left, right) => {
               if (left.status === right.status) {
                 return right.remainingQuantity - left.remainingQuantity

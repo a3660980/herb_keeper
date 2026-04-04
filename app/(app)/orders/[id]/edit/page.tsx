@@ -113,9 +113,14 @@ export default async function EditOrderPage({ params }: EditOrderPageProps) {
     rawItems.every((item) => Number(item.shipped_quantity ?? 0) === 0)
 
   if (!canEditOrder) {
+    const errorMessage =
+      order.status === "canceled"
+        ? "已撤銷的訂單不可修改。"
+        : "已有出貨紀錄的訂單不可修改，請改由出貨流程更新履約狀態。"
+
     redirect(
       withQueryString(`/orders/${id}`, {
-        error: "已有出貨紀錄的訂單不可修改，請改由出貨流程更新履約狀態。",
+        error: errorMessage,
       })
     )
   }

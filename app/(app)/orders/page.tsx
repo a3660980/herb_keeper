@@ -69,6 +69,10 @@ function getStatusVariant(status: OrderStatus) {
     return "default"
   }
 
+  if (status === "canceled") {
+    return "destructive"
+  }
+
   return "outline"
 }
 
@@ -156,6 +160,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   const pendingCount = orders.filter((order) => order.status === "pending").length
   const partialCount = orders.filter((order) => order.status === "partial").length
   const completedCount = orders.filter((order) => order.status === "completed").length
+  const canceledCount = orders.filter((order) => order.status === "canceled").length
 
   return (
     <div className="space-y-6">
@@ -175,7 +180,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
       {statusMessage ? <FormMessage message={statusMessage} tone="success" /> : null}
       {error ? <FormMessage message={error} tone="error" /> : null}
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <Card className="border border-border/60 bg-card/85 shadow-sm backdrop-blur">
           <CardHeader>
             <CardDescription>訂單總數</CardDescription>
@@ -198,6 +203,12 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
           <CardHeader>
             <CardDescription>已完成</CardDescription>
             <CardTitle>{completedCount}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border border-border/60 bg-card/85 shadow-sm backdrop-blur">
+          <CardHeader>
+            <CardDescription>已撤銷</CardDescription>
+            <CardTitle>{canceledCount}</CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -293,7 +304,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
                             <Link href={`/orders/${order.id}/edit`}>修改</Link>
                           </Button>
                         ) : null}
-                        {order.remainingQuantity > 0 ? (
+                        {order.status !== "canceled" && order.remainingQuantity > 0 ? (
                           <Button asChild size="sm">
                             <Link href={`/orders/${order.id}#shipment-form`}>出貨</Link>
                           </Button>

@@ -55,6 +55,10 @@ function getUpdateOrderActionErrorMessage(error: { code?: string; message: strin
     return "Orders update workflow 的資料庫函式尚未部署，請先套用最新 migration。"
   }
 
+  if (error.message.includes("Canceled orders cannot be updated")) {
+    return "已撤銷的訂單不可修改。"
+  }
+
   if (error.message.includes("Only orders without shipment history can be updated")) {
     return "已有出貨紀錄的訂單不可修改，避免影響履歷與庫存。"
   }
@@ -82,9 +86,33 @@ function getUpdateOrderActionErrorMessage(error: { code?: string; message: strin
   return error.message || "修改訂單失敗，請稍後再試。"
 }
 
+function getCancelOrderActionErrorMessage(error: { code?: string; message: string }) {
+  if (error.code === "PGRST202") {
+    return "Orders cancel workflow 的資料庫函式尚未部署，請先套用最新 migration。"
+  }
+
+  if (error.message.includes("Only orders without shipment history can be canceled")) {
+    return "已有出貨紀錄的訂單不可撤銷，避免影響履歷與庫存。"
+  }
+
+  if (error.message.includes("Order already canceled")) {
+    return "這張訂單已經撤銷。"
+  }
+
+  if (error.message.includes("Order") && error.message.includes("not found")) {
+    return "這張訂單已不存在，請返回列表後重新操作。"
+  }
+
+  return error.message || "撤銷訂單失敗，請稍後再試。"
+}
+
 function getShipmentActionErrorMessage(error: { code?: string; message: string }) {
   if (error.code === "PGRST202") {
     return "Shipment workflow 的資料庫函式尚未部署，請先套用最新 migration。"
+  }
+
+  if (error.message.includes("Canceled orders cannot create shipments")) {
+    return "已撤銷的訂單不可再建立出貨。"
   }
 
   if (
@@ -243,6 +271,46 @@ export async function updateOrderAction(
     withQueryString(`/orders/${orderId}`, {
       status: "已更新訂單內容。",
     })
+  )
+}
+
+export async function cancelOrderAction(orderId: string, redirectToList = false) {
+  let errorMessage = ""
+
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase.rpc("cancel_order", {
+      p_order_id: orderId,
+    })
+
+    if (error) {
+      errorMessage = getCancelOrderActionErrorMessage(error)
+    } else if (!data) {
+      errorMessage = "撤銷訂單失敗，系統未回傳訂單編號。"
+    }
+  } catch (error) {
+    errorMessage = getUnexpectedErrorMessage(error)
+  }
+
+  if (errorMessage) {
+    redirect(
+      redirectToList
+        ? withQueryString("/orders", { error: errorMessage })
+        : withQueryString(`/orders/${orderId}`, { error: errorMessage })
+    )
+  }
+
+  revalidatePath("/orders")
+  revalidatePath(`/orders/${orderId}`)
+  revalidatePath(`/orders/${orderId}/edit`)
+  revalidatePath("/dashboard")
+
+  redirect(
+    redirectToList
+      ? withQueryString("/orders", { statusMessage: "已撤銷訂單。" })
+      : withQueryString(`/orders/${orderId}`, {
+          status: "已撤銷訂單，不能再修改或出貨。",
+        })
   )
 }
 

@@ -6,6 +6,8 @@ import {
   getOrderFieldErrors,
   getShipmentFieldErrors,
   localDateTimeToIsoString,
+  orderStatusLabels,
+  orderStatusOptions,
   orderRecordToFormValues,
   orderFormSchema,
   orderPayloadToRpcItems,
@@ -20,6 +22,11 @@ const productId = "22222222-2222-2222-2222-222222222222"
 const orderItemId = "33333333-3333-3333-3333-333333333333"
 
 describe("lib/features/orders", () => {
+  it("includes the canceled order status label", () => {
+    expect(orderStatusOptions).toContain("canceled")
+    expect(orderStatusLabels.canceled).toBe("已撤銷")
+  })
+
   it("converts a local datetime and timezone offset into ISO", () => {
     expect(localDateTimeToIsoString("2026-04-04T06:36", -480)).toBe(
       "2026-04-03T22:36:00.000Z"
