@@ -27,10 +27,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install PostgreSQL client and rclone
+      - name: Install rclone
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client rclone
+          sudo apt-get install -y rclone
 
       - name: Validate backup secrets
         run: |
@@ -118,15 +118,22 @@ jobs:
           BACKUP_BASENAME="supabase-public-data-$(date -u +%Y%m%dT%H%M%SZ).dump"
           BACKUP_PATH="backups/$BACKUP_BASENAME"
 
-          pg_dump \
-            --dbname="$SUPABASE_DB_URL" \
-            --format=custom \
-            --compress=9 \
-            --data-only \
-            --schema=public \
-            --no-owner \
-            --no-privileges \
-            --file="$BACKUP_PATH"
+          docker run --rm \
+            -e SUPABASE_DB_URL \
+            -e BACKUP_BASENAME \
+            -v "$PWD/backups:/backups" \
+            postgres:17 \
+            sh -ceu '
+              pg_dump \
+                --dbname="$SUPABASE_DB_URL" \
+                --format=custom \
+                --compress=9 \
+                --data-only \
+                --schema=public \
+                --no-owner \
+                --no-privileges \
+                --file="/backups/$BACKUP_BASENAME"
+            '
 
           sha256sum "$BACKUP_PATH" > "$BACKUP_PATH.sha256"
 
