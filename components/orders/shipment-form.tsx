@@ -63,11 +63,32 @@ export function ShipmentForm({
   const [values, setValues] = useState(state.values)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
+  const payloadRef = useRef<HTMLInputElement>(null)
   const timezoneOffsetRef = useRef<HTMLInputElement>(null)
   const shouldSubmitRef = useRef(false)
+  const valuesRef = useRef(state.values)
   const syncValuesFromAction = useEffectEvent((nextValues: typeof state.values) => {
+    valuesRef.current = nextValues
     setValues(nextValues)
   })
+
+  function updateValues(
+    updater:
+      | typeof state.values
+      | ((current: typeof state.values) => typeof state.values)
+  ) {
+    setValues((current) => {
+      const baseValues = valuesRef.current ?? current
+      const nextValues =
+        typeof updater === "function"
+          ? updater(baseValues)
+          : updater
+
+      valuesRef.current = nextValues
+
+      return nextValues
+    })
+  }
 
   useEffect(() => {
     syncValuesFromAction(state.values)
@@ -130,6 +151,10 @@ export function ShipmentForm({
       action={formAction}
       className="space-y-6"
       onSubmit={(event) => {
+        if (payloadRef.current) {
+          payloadRef.current.value = JSON.stringify(valuesRef.current)
+        }
+
         if (hasClientItemErrors) {
           event.preventDefault()
           shouldSubmitRef.current = false
@@ -152,7 +177,7 @@ export function ShipmentForm({
     >
       {state.message ? <FormMessage message={state.message} tone="error" /> : null}
 
-      <input type="hidden" name="payload" value={payload} />
+      <input ref={payloadRef} type="hidden" name="payload" value={payload} />
       <input ref={timezoneOffsetRef} type="hidden" name="timezoneOffsetMinutes" defaultValue="0" />
 
       <div className="grid gap-5 md:grid-cols-2">
@@ -163,7 +188,7 @@ export function ShipmentForm({
             type="datetime-local"
             value={values.shipmentDate}
             onChange={(event) => {
-              setValues((current) => ({
+              updateValues((current) => ({
                 ...current,
                 shipmentDate: event.target.value,
               }))
@@ -183,7 +208,7 @@ export function ShipmentForm({
             value={values.note}
             placeholder="例如：先出一半、等待下一批補貨。"
             onChange={(event) => {
-              setValues((current) => ({
+              updateValues((current) => ({
                 ...current,
                 note: event.target.value,
               }))
@@ -257,7 +282,7 @@ export function ShipmentForm({
                             editableLimit
                           )
 
-                          setValues((current) => ({
+                          updateValues((current) => ({
                             ...current,
                             items: current.items.map((line) =>
                               line.orderItemId === item.orderItemId

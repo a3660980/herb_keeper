@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
+import { FullscreenToggle } from "@/components/app/fullscreen-toggle"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -182,6 +183,26 @@ export function AppNavigation() {
         <div className={cn("mt-5 flex-1", collapsed && "w-full")}>
           <NavigationList pathname={pathname} collapsed={collapsed} />
         </div>
+
+        <div className={cn("mt-5", collapsed && "w-full")}>
+          <div
+            className={cn(
+              "rounded-[1.5rem] border border-border/80 bg-sidebar/94 shadow-[0_20px_50px_-34px_rgba(15,23,42,0.2)] backdrop-blur-xl transition-all duration-300",
+              collapsed ? "flex justify-center p-3" : "p-3.5 xl:p-4"
+            )}
+          >
+            <FullscreenToggle
+              className={cn(
+                "bg-background/86 shadow-none",
+                collapsed
+                  ? "rounded-full"
+                  : "w-full justify-start rounded-[1rem] border-border/70"
+              )}
+              labelClassName={collapsed ? "sr-only" : undefined}
+              size={collapsed ? "icon-lg" : "sm"}
+            />
+          </div>
+        </div>
       </div>
     </aside>
   )
@@ -242,6 +263,13 @@ export function MobileNavigation() {
 
           <div className="sidebar-scrollbar flex-1 overflow-y-auto px-4 py-4">
             <NavigationList pathname={pathname} mobile />
+          </div>
+
+          <div className="border-t border-border/70 px-4 py-4">
+            <FullscreenToggle
+              className="w-full justify-start rounded-[1rem] border-border/70 bg-background/86 shadow-none"
+              size="sm"
+            />
           </div>
         </div>
       </SheetContent>

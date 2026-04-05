@@ -1,6 +1,8 @@
 import Link from "next/link"
 import type { ReactNode } from "react"
 
+import { FullscreenToggle } from "@/components/app/fullscreen-toggle"
+
 type AuthLayoutProps = {
   children: ReactNode
 }
@@ -33,9 +35,16 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
             </span>
           </Link>
 
-          <p className="hidden text-sm text-muted-foreground md:block">
-            門市與內勤共用的營運入口
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="hidden text-sm text-muted-foreground md:block">
+              門市與內勤共用的營運入口
+            </p>
+            <FullscreenToggle
+              className="bg-card/88 shadow-[0_16px_36px_-26px_rgba(15,23,42,0.18)] backdrop-blur-md"
+              labelClassName="hidden xl:inline"
+              size="sm"
+            />
+          </div>
         </header>
 
         <main className="relative flex flex-1 items-center justify-center py-6 lg:py-10">
