@@ -19,8 +19,7 @@ jobs:
 
     env:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-      GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
-      GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+      GDRIVE_RCLONE_CONFIG: ${{ secrets.GDRIVE_RCLONE_CONFIG }}
       BACKUP_RETENTION_DAYS: 30
 
     steps:
@@ -35,8 +34,7 @@ jobs:
       - name: Validate backup secrets
         run: |
           test -n "$SUPABASE_DB_URL" || (echo "Missing secret: SUPABASE_DB_URL" && exit 1)
-          test -n "$GDRIVE_SERVICE_ACCOUNT_JSON" || (echo "Missing secret: GDRIVE_SERVICE_ACCOUNT_JSON" && exit 1)
-          test -n "$GDRIVE_FOLDER_ID" || (echo "Missing secret: GDRIVE_FOLDER_ID" && exit 1)
+          test -n "$GDRIVE_RCLONE_CONFIG" || (echo "Missing secret: GDRIVE_RCLONE_CONFIG" && exit 1)
 
       - name: Validate database URL format
         run: |
@@ -96,21 +94,17 @@ jobs:
           console.log("Database host DNS resolution is compatible with the runner.")
           EOF
 
-      - name: Write Google Drive service account key
+      - name: Validate rclone Google Drive config
         run: |
-          printf '%s' "$GDRIVE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/gdrive-service-account.json"
-          chmod 600 "$RUNNER_TEMP/gdrive-service-account.json"
+          printf '%s' "$GDRIVE_RCLONE_CONFIG" | grep -q '^\[gdrive\]$' || (echo "GDRIVE_RCLONE_CONFIG must include a [gdrive] remote." && exit 1)
+          printf '%s' "$GDRIVE_RCLONE_CONFIG" | grep -q '^type = drive$' || (echo "GDRIVE_RCLONE_CONFIG must configure a Google Drive remote." && exit 1)
+          printf '%s' "$GDRIVE_RCLONE_CONFIG" | grep -q '^token = ' || (echo "GDRIVE_RCLONE_CONFIG must include an OAuth token." && exit 1)
 
       - name: Configure rclone for Google Drive
         run: |
           mkdir -p "$HOME/.config/rclone"
-          cat > "$HOME/.config/rclone/rclone.conf" <<EOF
-          [gdrive]
-          type = drive
-          scope = drive
-          service_account_file = $RUNNER_TEMP/gdrive-service-account.json
-          root_folder_id = $GDRIVE_FOLDER_ID
-          EOF
+          printf '%s\n' "$GDRIVE_RCLONE_CONFIG" > "$HOME/.config/rclone/rclone.conf"
+          chmod 600 "$HOME/.config/rclone/rclone.conf"
 
       - name: Create backup dump
         run: |

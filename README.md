@@ -136,24 +136,33 @@ repo 內已提供 [`.github/workflows/supabase-backup-google-drive.yml`](.github
 #### 需要的 GitHub repository secrets
 
 - `SUPABASE_DB_URL`
-- `GDRIVE_SERVICE_ACCOUNT_JSON`
-- `GDRIVE_FOLDER_ID`
+- `GDRIVE_RCLONE_CONFIG`
 
 `SUPABASE_DB_URL` 請使用 Supabase Dashboard 提供的 PostgreSQL connection string，建議選 direct connection 或 session mode，並保留 `sslmode=require`。
 
-`GDRIVE_SERVICE_ACCOUNT_JSON` 請填入 Google service account 的完整 JSON 金鑰內容。
-
-`GDRIVE_FOLDER_ID` 請填入你要存放備份的 Google Drive 資料夾 ID。
+`GDRIVE_RCLONE_CONFIG` 請填入完整的 rclone Google Drive remote 設定內容，至少要包含 `[gdrive]`、`type = drive`、`token = ...`，並建議加上 `root_folder_id = 你的資料夾 ID`，讓備份固定寫入指定資料夾。
 
 #### Google Drive 設定步驟
 
-1. 到 Google Cloud 建立一個專用 project。
-2. 啟用 Google Drive API。
-3. 建立一個 service account。
-4. 建立 JSON key，將整份內容存成 GitHub secret `GDRIVE_SERVICE_ACCOUNT_JSON`。
-5. 在 Google Drive 建立一個備份專用資料夾。
-6. 把該資料夾分享給 service account 的 email。
-7. 從資料夾網址取出 folder ID，存成 GitHub secret `GDRIVE_FOLDER_ID`。
+1. 在你的個人 Google Drive 建立一個備份專用資料夾。
+2. 安裝 rclone，執行 `rclone config`。
+3. 建立一個新的 remote，名稱填 `gdrive`，storage 選 `drive`。
+4. scope 建議選完整存取，登入你的個人 Google 帳號完成 OAuth 授權。
+5. 問到 root folder 時，可直接填你要存放備份的資料夾 ID；若當下先略過，也可以之後手動編輯。
+6. 完成後打開本機的 `~/.config/rclone/rclone.conf`，複製整段 `[gdrive]` remote 設定。
+7. 把整段內容存成 GitHub secret `GDRIVE_RCLONE_CONFIG`。
+
+範例格式如下：
+
+```ini
+[gdrive]
+type = drive
+scope = drive
+token = {"access_token":"...","token_type":"Bearer","refresh_token":"...","expiry":"..."}
+root_folder_id = your_google_drive_folder_id
+```
+
+這種做法適合個人 Google Drive，因為它會直接使用你自己的雲端硬碟配額，不會再碰到 service account 沒有 storage quota 的限制。
 
 #### workflow 目前的備份內容
 
