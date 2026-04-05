@@ -413,7 +413,7 @@ export default async function OrderDetailPage({
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 {order.status === "canceled"
                   ? "這張訂單已保留為撤銷狀態，不能再修改或建立出貨。"
-                  : `目前還有 ${formatQuantity(totalRemainingQuantity)} g 尚未出貨，可直接在下方建立部分出貨。`}
+                  : `目前還有 ${formatQuantity(totalRemainingQuantity)} g 尚未出貨，可直接在下方建立部分出貨，或使用全部出貨一次結單。`}
               </p>
             </div>
           </CardContent>
@@ -429,7 +429,7 @@ export default async function OrderDetailPage({
           <CardDescription>
             {order.status === "canceled"
               ? "撤銷後會保留訂單資料，但不能再安排出貨。"
-              : "輸入本次出貨數量後，訂單進度與庫存會立即更新。"}
+              : "輸入本次出貨數量後，訂單進度與庫存會立即更新；若庫存足夠，也可直接全部出貨一次結單。"}
           </CardDescription>
         </CardHeader>
         <CardContent>

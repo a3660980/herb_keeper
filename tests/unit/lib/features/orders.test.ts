@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  canShipAllShipmentItems,
   createOrderFormState,
   createShipmentFormState,
+  fillShipmentFormWithAllRemaining,
   getOrderFieldErrors,
+  getShipmentLineLimit,
   getShipmentFieldErrors,
   localDateTimeToIsoString,
   orderStatusLabels,
@@ -254,6 +257,81 @@ describe("lib/features/orders", () => {
 
     expect(state.values.shipmentDate).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
     expect(state.values.items).toHaveLength(1)
+  })
+
+  it("calculates the shipment limit from remaining quantity and stock", () => {
+    expect(
+      getShipmentLineLimit({
+        remainingQuantity: "3",
+        availableStock: "5",
+      })
+    ).toBe(3)
+
+    expect(
+      getShipmentLineLimit({
+        remainingQuantity: "3",
+        availableStock: "1.5",
+      })
+    ).toBe(1.5)
+  })
+
+  it("fills all shipment lines with the remaining quantity when stock is sufficient", () => {
+    const values = fillShipmentFormWithAllRemaining({
+      shipmentDate: "2026-04-04T06:36",
+      note: "",
+      items: [
+        {
+          orderItemId,
+          productId,
+          productName: "黃耆",
+          remainingQuantity: "2",
+          availableStock: "100",
+          unit: "g",
+          shippedQuantity: "0",
+        },
+        {
+          orderItemId: "44444444-4444-4444-4444-444444444444",
+          productId,
+          productName: "黨參",
+          remainingQuantity: "1.5",
+          availableStock: "2",
+          unit: "g",
+          shippedQuantity: "0",
+        },
+      ],
+    })
+
+    expect(values.items.map((item) => item.shippedQuantity)).toEqual(["2", "1.5"])
+  })
+
+  it("detects whether all shipment lines can be fulfilled in one batch", () => {
+    expect(
+      canShipAllShipmentItems([
+        {
+          orderItemId,
+          productId,
+          productName: "黃耆",
+          remainingQuantity: "2",
+          availableStock: "100",
+          unit: "g",
+          shippedQuantity: "0",
+        },
+      ])
+    ).toBe(true)
+
+    expect(
+      canShipAllShipmentItems([
+        {
+          orderItemId,
+          productId,
+          productName: "黃耆",
+          remainingQuantity: "2",
+          availableStock: "1",
+          unit: "g",
+          shippedQuantity: "0",
+        },
+      ])
+    ).toBe(false)
   })
 
   it("parses a shipment submission payload and timezone offset", () => {

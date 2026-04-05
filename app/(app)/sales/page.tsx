@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Separator } from "@/components/ui/separator"
 import {
   Table,
   TableBody,
@@ -131,11 +132,21 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
         eyebrow="交易管理"
         title="現場銷貨"
         aside={
-          <div className="flex flex-wrap gap-2">
-            <TradeModuleSwitch active="sales" />
-            <Button asChild size="sm">
-              <Link href="/sales/new">新增交易</Link>
-            </Button>
+          <div className="flex flex-col gap-3">
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+                切換交易檢視
+              </p>
+              <TradeModuleSwitch active="sales" />
+            </div>
+
+            <Separator />
+
+            <div className="flex justify-end">
+              <Button asChild size="sm">
+                <Link href="/sales/new">新增交易</Link>
+              </Button>
+            </div>
           </div>
         }
       />

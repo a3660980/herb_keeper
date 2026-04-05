@@ -420,6 +420,38 @@ export function createEmptyShipmentFormValues(
   }
 }
 
+export function getShipmentLineLimit(
+  item: Pick<ShipmentLineFormValues, "remainingQuantity" | "availableStock">
+) {
+  return Math.min(
+    Number(item.remainingQuantity || 0),
+    Number(item.availableStock || 0)
+  )
+}
+
+export function canShipAllShipmentItems(items: ShipmentLineFormValues[]) {
+  return (
+    items.length > 0 &&
+    items.every((item) => {
+      const remainingQuantity = Number(item.remainingQuantity || 0)
+
+      return remainingQuantity > 0 && getShipmentLineLimit(item) >= remainingQuantity
+    })
+  )
+}
+
+export function fillShipmentFormWithAllRemaining(
+  values: ShipmentFormValues
+): ShipmentFormValues {
+  return {
+    ...values,
+    items: values.items.map((item) => ({
+      ...item,
+      shippedQuantity: toNumericInputValue(getShipmentLineLimit(item)),
+    })),
+  }
+}
+
 export function normalizeShipmentFormValues(input: unknown): ShipmentFormValues {
   const fallback = createEmptyShipmentFormValues()
 

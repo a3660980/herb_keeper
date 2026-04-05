@@ -69,7 +69,6 @@ type SaleTradeItemRow = {
 
 export const tradeCreateModeConfig = {
   order: {
-    switchLabel: "訂單",
     returnHref: "/orders",
     returnLabel: "返回訂單列表",
     cardTitle: "訂單主檔與明細",
@@ -77,7 +76,6 @@ export const tradeCreateModeConfig = {
     pendingLabel: "建立中...",
   },
   sale: {
-    switchLabel: "銷貨",
     returnHref: "/sales",
     returnLabel: "返回銷貨列表",
     cardTitle: "銷貨主檔與明細",

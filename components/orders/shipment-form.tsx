@@ -10,7 +10,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { formatQuantity } from "@/lib/format"
-import { type ShipmentFormState } from "@/lib/features/orders"
+import {
+  canShipAllShipmentItems,
+  fillShipmentFormWithAllRemaining,
+  getShipmentLineLimit,
+  type ShipmentFormState,
+} from "@/lib/features/orders"
 
 type ShipmentFormProps = {
   action: (
@@ -20,15 +25,6 @@ type ShipmentFormProps = {
   initialState: ShipmentFormState
   submitLabel: string
   pendingLabel: string
-}
-
-type ShipmentItemValue = ShipmentFormState["values"]["items"][number]
-
-function getShipmentLineLimit(item: ShipmentItemValue) {
-  return Math.min(
-    Number(item.remainingQuantity || 0),
-    Number(item.availableStock || 0)
-  )
 }
 
 function normalizeShippedQuantityInput(rawValue: string, maxQuantity: number) {
@@ -144,6 +140,13 @@ export function ShipmentForm({
     (total, item) => total + item.numericShippedQuantity,
     0
   )
+  const canShipAll = canShipAllShipmentItems(values.items)
+
+  function handleShipAll() {
+    updateValues((current) => fillShipmentFormWithAllRemaining(current))
+    shouldSubmitRef.current = false
+    setConfirmOpen(true)
+  }
 
   return (
     <form
@@ -312,10 +315,27 @@ export function ShipmentForm({
         })}
       </div>
 
-      <div className="flex flex-wrap justify-end gap-3">
-        <Button type="submit">
-          {submitLabel}
-        </Button>
+      <div className="flex flex-col gap-2 sm:items-end">
+        {!canShipAll ? (
+          <p className="text-sm text-muted-foreground">
+            目前有品項庫存不足，暫時無法全部出貨結單。
+          </p>
+        ) : null}
+
+        <div className="flex flex-wrap justify-end gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            data-testid="ship-all-button"
+            disabled={!canShipAll}
+            onClick={handleShipAll}
+          >
+            全部出貨
+          </Button>
+          <Button type="submit">
+            {submitLabel}
+          </Button>
+        </div>
       </div>
 
       <DialogPrimitive.Root open={confirmOpen} onOpenChange={setConfirmOpen}>

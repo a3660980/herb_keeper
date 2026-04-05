@@ -47,6 +47,8 @@ export function OrderForm({
   const [customerOptions, setCustomerOptions] = useState(customers)
   const [values, setValues] = useState(state.values)
   const timezoneOffsetRef = useRef<HTMLInputElement>(null)
+  const itemsScrollAreaRef = useRef<HTMLDivElement>(null)
+  const previousItemCountRef = useRef(state.values.items.length)
   const syncValuesFromAction = useEffectEvent((nextValues: typeof state.values) => {
     setValues(nextValues)
   })
@@ -58,6 +60,33 @@ export function OrderForm({
   useEffect(() => {
     syncValuesFromAction(state.values)
   }, [state.values])
+
+  useEffect(() => {
+    const previousItemCount = previousItemCountRef.current
+    previousItemCountRef.current = values.items.length
+
+    if (values.items.length <= previousItemCount) {
+      return
+    }
+
+    const scrollArea = itemsScrollAreaRef.current
+
+    if (!scrollArea) {
+      return
+    }
+
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    const animationFrameId = window.requestAnimationFrame(() => {
+      scrollArea.scrollTo({
+        top: scrollArea.scrollHeight,
+        behavior: prefersReducedMotion ? "auto" : "smooth",
+      })
+    })
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId)
+    }
+  }, [values.items.length])
 
   function findCustomer(customerId: string) {
     return customerOptions.find((customer) => customer.id === customerId)
@@ -106,6 +135,7 @@ export function OrderForm({
     searchText: product.name,
     secondaryText: `庫存 ${formatQuantity(product.availableStock)} ${product.unit}`,
   }))
+  const canRemoveItems = values.items.length > 1
 
   function handleCustomerCreated(customer: OrderCustomerOption) {
     setCustomerOptions((current) => {
@@ -294,7 +324,11 @@ export function OrderForm({
             <div className="text-xs text-muted-foreground">新增列後只會在這個區塊內捲動</div>
           </div>
 
-          <div className="content-scrollbar max-h-[30rem] overflow-y-auto">
+          <div
+            ref={itemsScrollAreaRef}
+            data-testid="order-lines-scroll-area"
+            className="content-scrollbar max-h-[30rem] overflow-y-auto"
+          >
           {values.items.map((line, index) => {
             const product = findProduct(line.productId)
             const customer = findCustomer(values.customerId)
@@ -320,22 +354,22 @@ export function OrderForm({
                     </span>
                     <div className="text-sm font-medium text-foreground">訂單明細</div>
                   </div>
-                  <Button
-                    type="button"
-                    size="xs"
-                    variant="ghost"
-                    onClick={() => {
-                      setValues((current) => ({
-                        ...current,
-                        items:
-                          current.items.length === 1
-                            ? [createOrderLineFormValue()]
-                            : current.items.filter((item) => item.id !== line.id),
-                      }))
-                    }}
-                  >
-                    移除
-                  </Button>
+                  {canRemoveItems ? (
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="ghost"
+                      className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:border-destructive/30 focus-visible:ring-destructive/15"
+                      onClick={() => {
+                        setValues((current) => ({
+                          ...current,
+                          items: current.items.filter((item) => item.id !== line.id),
+                        }))
+                      }}
+                    >
+                      移除
+                    </Button>
+                  ) : null}
                 </div>
 
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1.65fr)_10rem_10rem] lg:items-start">

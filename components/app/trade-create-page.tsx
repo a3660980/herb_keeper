@@ -4,10 +4,12 @@ import { createOrderAction } from "@/app/(app)/orders/actions"
 import { createDirectSaleAction } from "@/app/(app)/sales/actions"
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
+import { TradeModuleSwitch } from "@/components/app/trade-module-switch"
 import { OrderForm } from "@/components/orders/order-form"
 import { SaleForm } from "@/components/sales/sale-form"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 import {
   createOrderFormState,
 } from "@/lib/features/orders"
@@ -100,16 +102,26 @@ export async function TradeCreatePage({ mode }: TradeCreatePageProps) {
         eyebrow="交易管理"
         title="新增交易"
         aside={
-          <div className="flex flex-wrap gap-2">
-            <Button asChild size="sm" variant={mode === "order" ? "default" : "outline"}>
-              <Link href="/orders/new">{tradeCreateModeConfig.order.switchLabel}</Link>
-            </Button>
-            <Button asChild size="sm" variant={mode === "sale" ? "default" : "outline"}>
-              <Link href="/sales/new">{tradeCreateModeConfig.sale.switchLabel}</Link>
-            </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link href={modeConfig.returnHref}>{modeConfig.returnLabel}</Link>
-            </Button>
+          <div className="flex flex-col gap-3">
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+                切換建立模式
+              </p>
+              <TradeModuleSwitch
+                active={mode === "order" ? "orders" : "sales"}
+                orderHref="/orders/new"
+                saleHref="/sales/new"
+                ariaLabel="交易建立模式切換"
+              />
+            </div>
+
+            <Separator />
+
+            <div className="flex justify-end">
+              <Button asChild size="sm" variant="outline">
+                <Link href={modeConfig.returnHref}>{modeConfig.returnLabel}</Link>
+              </Button>
+            </div>
           </div>
         }
       />
