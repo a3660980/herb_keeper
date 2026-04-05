@@ -20,6 +20,7 @@ jobs:
     env:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       GDRIVE_RCLONE_CONFIG: ${{ secrets.GDRIVE_RCLONE_CONFIG }}
+      BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
       BACKUP_RETENTION_DAYS: 30
 
     steps:
@@ -35,6 +36,7 @@ jobs:
         run: |
           test -n "$SUPABASE_DB_URL" || (echo "Missing secret: SUPABASE_DB_URL" && exit 1)
           test -n "$GDRIVE_RCLONE_CONFIG" || (echo "Missing secret: GDRIVE_RCLONE_CONFIG" && exit 1)
+          test -n "$BACKUP_ENCRYPTION_PASSPHRASE" || (echo "Missing secret: BACKUP_ENCRYPTION_PASSPHRASE" && exit 1)
 
       - name: Validate database URL format
         run: |
@@ -111,6 +113,7 @@ jobs:
           mkdir -p backups
           BACKUP_BASENAME="supabase-public-data-$(date -u +%Y%m%dT%H%M%SZ).dump"
           BACKUP_PATH="backups/$BACKUP_BASENAME"
+          ENCRYPTED_BACKUP_PATH="$BACKUP_PATH.enc"
 
           docker run --rm \
             -e SUPABASE_DB_URL="$SUPABASE_DB_URL" \
@@ -129,10 +132,17 @@ jobs:
                 --file="/backups/$BACKUP_BASENAME"
             '
 
-          sha256sum "$BACKUP_PATH" > "$BACKUP_PATH.sha256"
+          openssl enc -aes-256-cbc -salt -pbkdf2 -md sha256 \
+            -pass env:BACKUP_ENCRYPTION_PASSPHRASE \
+            -in "$BACKUP_PATH" \
+            -out "$ENCRYPTED_BACKUP_PATH"
 
-          echo "BACKUP_PATH=$BACKUP_PATH" >> "$GITHUB_ENV"
-          echo "BACKUP_SUM_PATH=$BACKUP_PATH.sha256" >> "$GITHUB_ENV"
+          rm -f "$BACKUP_PATH"
+
+          sha256sum "$ENCRYPTED_BACKUP_PATH" > "$ENCRYPTED_BACKUP_PATH.sha256"
+
+          echo "BACKUP_PATH=$ENCRYPTED_BACKUP_PATH" >> "$GITHUB_ENV"
+          echo "BACKUP_SUM_PATH=$ENCRYPTED_BACKUP_PATH.sha256" >> "$GITHUB_ENV"
 
       - name: Upload backup to Google Drive
         run: |
@@ -143,12 +153,12 @@ jobs:
         run: |
           rclone delete gdrive: \
             --min-age "${BACKUP_RETENTION_DAYS}d" \
-            --include "supabase-public-data-*.dump" \
+            --include "supabase-public-data-*.dump.enc" \
             --drive-use-trash=false
 
           rclone delete gdrive: \
             --min-age "${BACKUP_RETENTION_DAYS}d" \
-            --include "supabase-public-data-*.dump.sha256" \
+            --include "supabase-public-data-*.dump.enc.sha256" \
             --drive-use-trash=false
 
       - name: Upload backup artifact

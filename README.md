@@ -137,10 +137,13 @@ repo 內已提供 [`.github/workflows/supabase-backup-google-drive.yml`](.github
 
 - `SUPABASE_DB_URL`
 - `GDRIVE_RCLONE_CONFIG`
+- `BACKUP_ENCRYPTION_PASSPHRASE`
 
 `SUPABASE_DB_URL` 請使用 Supabase Dashboard 提供的 PostgreSQL connection string，建議選 direct connection 或 session mode，並保留 `sslmode=require`。
 
 `GDRIVE_RCLONE_CONFIG` 請填入完整的 rclone Google Drive remote 設定內容，至少要包含 `[gdrive]`、`type = drive`、`token = ...`，並建議加上 `root_folder_id = 你的資料夾 ID`，讓備份固定寫入指定資料夾。
+
+`BACKUP_ENCRYPTION_PASSPHRASE` 請填入長度足夠、隨機且未重複用於其他系統的備份加密密碼。workflow 會先用它將 dump 轉成加密檔，再上傳到 Google Drive 與 GitHub artifact。
 
 #### Google Drive 設定步驟
 
@@ -170,12 +173,22 @@ root_folder_id = your_google_drive_folder_id
 - 匯出格式為 custom dump
 - 只備份 `public` schema 的資料
 - 不包含 owner / privileges
+- 備份檔會先用 `openssl` 進行 AES-256-CBC 加密後再上傳
 
 這個策略適合目前 repo 的 migration-first 做法：schema 與 RPC 仍以 `supabase/migrations/` 為主，資料備份則專注在營運資料本身。
 
 #### 還原範例
 
-先套用 migration 重建 schema，再用備份檔還原資料：
+先套用 migration 重建 schema，再先解密、後還原資料：
+
+```bash
+openssl enc -d -aes-256-cbc -pbkdf2 -md sha256 \
+	-pass env:BACKUP_ENCRYPTION_PASSPHRASE \
+	-in supabase-public-data-YYYYMMDDTHHMMSSZ.dump.enc \
+	-out supabase-public-data-YYYYMMDDTHHMMSSZ.dump
+```
+
+再執行：
 
 ```bash
 pg_restore \
@@ -190,7 +203,7 @@ pg_restore \
 如果要先驗證檔案完整性，可對照同名的 `.sha256` 檔：
 
 ```bash
-shasum -a 256 -c supabase-public-data-YYYYMMDDTHHMMSSZ.dump.sha256
+shasum -a 256 -c supabase-public-data-YYYYMMDDTHHMMSSZ.dump.enc.sha256
 ```
 
 ### Unit tests
