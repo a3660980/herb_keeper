@@ -51,7 +51,49 @@ jobs:
             throw new Error("SUPABASE_DB_URL must be a PostgreSQL connection string.")
           }
 
-          console.log("Validated PostgreSQL connection string format.")
+          const url = new URL(value)
+
+          if (!url.hostname) {
+            throw new Error("SUPABASE_DB_URL must include a hostname.")
+          }
+
+          console.log(`Validated PostgreSQL connection string format for host: ${url.hostname}`)
+
+          if (url.hostname.startsWith("db.")) {
+            console.log(
+              "Direct database hosts may resolve to IPv6 only. If GitHub Actions later fails with 'Network is unreachable', switch SUPABASE_DB_URL to the Supabase session pooler connection string.",
+            )
+          }
+          EOF
+
+      - name: Check database host network compatibility
+        run: |
+          node --input-type=module <<'EOF'
+          import dns from 'node:dns/promises'
+
+          const value = process.env.SUPABASE_DB_URL?.trim() ?? ""
+          const url = new URL(value)
+          const hostname = url.hostname
+
+          const [ipv4Records, ipv6Records] = await Promise.all([
+            dns.resolve4(hostname).catch(() => []),
+            dns.resolve6(hostname).catch(() => []),
+          ])
+
+          console.log(`IPv4 records: ${ipv4Records.length}`)
+          console.log(`IPv6 records: ${ipv6Records.length}`)
+
+          if (ipv4Records.length === 0 && ipv6Records.length > 0) {
+            throw new Error(
+              "The database host resolves only to IPv6. GitHub-hosted runners often cannot reach IPv6-only direct hosts. Replace SUPABASE_DB_URL with the Supabase session pooler connection string (port 5432).",
+            )
+          }
+
+          if (ipv4Records.length === 0 && ipv6Records.length === 0) {
+            throw new Error("The database host did not resolve in DNS. Check SUPABASE_DB_URL.")
+          }
+
+          console.log("Database host DNS resolution is compatible with the runner.")
           EOF
 
       - name: Write Google Drive service account key
