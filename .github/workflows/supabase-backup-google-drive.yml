@@ -114,6 +114,7 @@ jobs:
           BACKUP_BASENAME="supabase-public-data-$(date -u +%Y%m%dT%H%M%SZ).dump"
           BACKUP_PATH="backups/$BACKUP_BASENAME"
           ENCRYPTED_BACKUP_PATH="$BACKUP_PATH.enc"
+          BACKUP_REMOTE_DIR="${BACKUP_BASENAME%.dump}"
 
           docker run --rm \
             -e SUPABASE_DB_URL="$SUPABASE_DB_URL" \
@@ -143,23 +144,22 @@ jobs:
 
           echo "BACKUP_PATH=$ENCRYPTED_BACKUP_PATH" >> "$GITHUB_ENV"
           echo "BACKUP_SUM_PATH=$ENCRYPTED_BACKUP_PATH.sha256" >> "$GITHUB_ENV"
+          echo "BACKUP_REMOTE_DIR=$BACKUP_REMOTE_DIR" >> "$GITHUB_ENV"
 
       - name: Upload backup to Google Drive
         run: |
-          rclone copyto "$BACKUP_PATH" "gdrive:$(basename "$BACKUP_PATH")"
-          rclone copyto "$BACKUP_SUM_PATH" "gdrive:$(basename "$BACKUP_SUM_PATH")"
+          rclone mkdir "gdrive:$BACKUP_REMOTE_DIR"
+          rclone copyto "$BACKUP_PATH" "gdrive:$BACKUP_REMOTE_DIR/$(basename "$BACKUP_PATH")"
+          rclone copyto "$BACKUP_SUM_PATH" "gdrive:$BACKUP_REMOTE_DIR/$(basename "$BACKUP_SUM_PATH")"
 
       - name: Remove expired backups from Google Drive
         run: |
           rclone delete gdrive: \
             --min-age "${BACKUP_RETENTION_DAYS}d" \
-            --include "supabase-public-data-*.dump.enc" \
+            --include "supabase-public-data-*/**" \
             --drive-use-trash=false
 
-          rclone delete gdrive: \
-            --min-age "${BACKUP_RETENTION_DAYS}d" \
-            --include "supabase-public-data-*.dump.enc.sha256" \
-            --drive-use-trash=false
+          rclone rmdirs gdrive: --leave-root
 
       - name: Upload backup artifact
         uses: actions/upload-artifact@v4
