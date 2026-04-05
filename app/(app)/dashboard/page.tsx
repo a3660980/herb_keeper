@@ -53,6 +53,7 @@ type TransactionRow = {
   transaction_id: string
   transaction_date: string
   customer_name: string
+  product_id: string
   product_name: string
   quantity: number | string
   revenue: number | string
@@ -113,6 +114,10 @@ function getOrderStatusVariant(status: OrderStatus) {
 
   if (status === "partial") {
     return "default"
+  }
+
+  if (status === "canceled") {
+    return "destructive"
   }
 
   return "outline"
@@ -188,7 +193,7 @@ export default async function DashboardPage() {
         supabase
           .from("transaction_history_view")
           .select(
-            "transaction_type, transaction_id, transaction_date, customer_name, product_name, quantity, revenue, profit_total"
+            "transaction_type, transaction_id, transaction_date, customer_name, product_id, product_name, quantity, revenue, profit_total"
           )
           .order("transaction_date", { ascending: false })
           .limit(6),
@@ -281,7 +286,12 @@ export default async function DashboardPage() {
                 orderAmount,
               }
             })
-            .filter((order) => order.status !== "completed" && order.remainingQuantity > 0)
+            .filter(
+              (order) =>
+                order.status !== "completed" &&
+                order.status !== "canceled" &&
+                order.remainingQuantity > 0
+            )
             .sort((left, right) => {
               if (left.status === right.status) {
                 return right.remainingQuantity - left.remainingQuantity
@@ -339,19 +349,10 @@ export default async function DashboardPage() {
       <PageIntro
         eyebrow="Operations Overview"
         title="營運總覽"
-        description="把銷售、履約、補貨與熱銷品項整理在同一個首頁，讓櫃台與內勤能快速判斷今天的優先工作。"
-        badges={[
-          latestMonth ? `${formatCurrency(latestMonth.total_revenue)} 本月營收` : "本月營收待更新",
-          orderQueue.length > 0 ? `${orderQueue.length} 筆待處理訂單` : "訂單履約穩定",
-          lowStockItems.length > 0 ? `${lowStockItems.length} 項需補貨` : "庫存狀況穩定",
-        ]}
         aside={
           <div className="flex flex-wrap gap-3">
             <Button asChild>
-              <Link href="/sales/new">建立銷貨</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/orders/new">新增訂單</Link>
+              <Link href="/orders/new">新增交易</Link>
             </Button>
             <Button asChild variant="secondary">
               <Link href="/reports">查看報表</Link>
@@ -379,6 +380,8 @@ export default async function DashboardPage() {
               : "尚無交易資料"
           }
           badge="Revenue"
+          href="/reports"
+          hrefLabel="報表分析"
         />
         <StatCard
           label="本月毛利"
@@ -389,6 +392,8 @@ export default async function DashboardPage() {
               : "尚無月度資料"
           }
           badge="Profit"
+          href="/reports"
+          hrefLabel="報表分析"
         />
         <StatCard
           label="待出貨訂單"
@@ -399,6 +404,8 @@ export default async function DashboardPage() {
               : "目前沒有待處理訂單"
           }
           badge="Fulfillment"
+          href="/orders"
+          hrefLabel="交易管理"
         />
         <StatCard
           label="低庫存提醒"
@@ -409,6 +416,8 @@ export default async function DashboardPage() {
               : "目前沒有低庫存品項"
           }
           badge="Inventory"
+          href="/inventory"
+          hrefLabel="庫存總覽"
         />
       </div>
 
@@ -435,7 +444,7 @@ export default async function DashboardPage() {
             ) : (
               recentTransactions.map((transaction) => (
                 <div
-                  key={`${transaction.transaction_type}-${transaction.transaction_id}`}
+                  key={`${transaction.transaction_type}-${transaction.transaction_id}-${transaction.product_id}`}
                   className="rounded-[1.25rem] border border-border/80 bg-background/90 p-4"
                 >
                   <div className="flex items-start justify-between gap-4">

@@ -17,7 +17,6 @@ export default function NewCustomerPage() {
       <PageIntro
         eyebrow="Customers"
         title="新增客戶"
-        description="建立新的客戶資料，電話與客戶類型會用於後續報價、訂單與門市銷售。"
         aside={
           <Button asChild variant="outline">
             <Link href="/customers">返回客戶列表</Link>

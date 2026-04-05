@@ -1,0 +1,117 @@
+name: Supabase Backup To Google Drive
+
+on:
+  schedule:
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: supabase-backup-google-drive-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
+      GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+      BACKUP_RETENTION_DAYS: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client and rclone
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client rclone
+
+      - name: Validate backup secrets
+        run: |
+          test -n "$SUPABASE_DB_URL" || (echo "Missing secret: SUPABASE_DB_URL" && exit 1)
+          test -n "$GDRIVE_SERVICE_ACCOUNT_JSON" || (echo "Missing secret: GDRIVE_SERVICE_ACCOUNT_JSON" && exit 1)
+          test -n "$GDRIVE_FOLDER_ID" || (echo "Missing secret: GDRIVE_FOLDER_ID" && exit 1)
+
+      - name: Validate database URL format
+        run: |
+          node --input-type=module <<'EOF'
+          const value = process.env.SUPABASE_DB_URL?.trim() ?? ""
+
+          if (!value) {
+            throw new Error("SUPABASE_DB_URL is empty after trimming.")
+          }
+
+          if (!value.startsWith("postgresql://") && !value.startsWith("postgres://")) {
+            throw new Error("SUPABASE_DB_URL must be a PostgreSQL connection string.")
+          }
+
+          console.log("Validated PostgreSQL connection string format.")
+          EOF
+
+      - name: Write Google Drive service account key
+        run: |
+          printf '%s' "$GDRIVE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/gdrive-service-account.json"
+          chmod 600 "$RUNNER_TEMP/gdrive-service-account.json"
+
+      - name: Configure rclone for Google Drive
+        run: |
+          mkdir -p "$HOME/.config/rclone"
+          cat > "$HOME/.config/rclone/rclone.conf" <<EOF
+          [gdrive]
+          type = drive
+          scope = drive
+          service_account_file = $RUNNER_TEMP/gdrive-service-account.json
+          root_folder_id = $GDRIVE_FOLDER_ID
+          EOF
+
+      - name: Create backup dump
+        run: |
+          mkdir -p backups
+          BACKUP_BASENAME="supabase-public-data-$(date -u +%Y%m%dT%H%M%SZ).dump"
+          BACKUP_PATH="backups/$BACKUP_BASENAME"
+
+          pg_dump \
+            --dbname="$SUPABASE_DB_URL" \
+            --format=custom \
+            --compress=9 \
+            --data-only \
+            --schema=public \
+            --no-owner \
+            --no-privileges \
+            --file="$BACKUP_PATH"
+
+          sha256sum "$BACKUP_PATH" > "$BACKUP_PATH.sha256"
+
+          echo "BACKUP_PATH=$BACKUP_PATH" >> "$GITHUB_ENV"
+          echo "BACKUP_SUM_PATH=$BACKUP_PATH.sha256" >> "$GITHUB_ENV"
+
+      - name: Upload backup to Google Drive
+        run: |
+          rclone copyto "$BACKUP_PATH" "gdrive:$(basename "$BACKUP_PATH")"
+          rclone copyto "$BACKUP_SUM_PATH" "gdrive:$(basename "$BACKUP_SUM_PATH")"
+
+      - name: Remove expired backups from Google Drive
+        run: |
+          rclone delete gdrive: \
+            --min-age "${BACKUP_RETENTION_DAYS}d" \
+            --include "supabase-public-data-*.dump" \
+            --drive-use-trash=false
+
+          rclone delete gdrive: \
+            --min-age "${BACKUP_RETENTION_DAYS}d" \
+            --include "supabase-public-data-*.dump.sha256" \
+            --drive-use-trash=false
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-backup-${{ github.run_id }}
+          path: |
+            ${{ env.BACKUP_PATH }}
+            ${{ env.BACKUP_SUM_PATH }}
+          retention-days: 7

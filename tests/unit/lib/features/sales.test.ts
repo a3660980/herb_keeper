@@ -109,6 +109,33 @@ describe("lib/features/sales", () => {
     })
   })
 
+  it("prefers the required sale date error when the datetime is blank", () => {
+    const values = {
+      customerId,
+      saleDate: "",
+      note: "",
+      items: [
+        {
+          id: "line-1",
+          productId,
+          quantity: "1",
+          finalUnitPrice: "52",
+        },
+      ],
+    }
+    const result = saleFormSchema.safeParse(values)
+
+    expect(result.success).toBe(false)
+
+    if (result.success) {
+      throw new Error("Expected blank sale date validation to fail")
+    }
+
+    const { fieldErrors } = getSaleFieldErrors(result.error, values)
+
+    expect(fieldErrors.saleDate).toBe("請選擇銷貨時間")
+  })
+
   it("maps sale payloads to RPC items", () => {
     expect(
       salePayloadToRpcItems({

@@ -33,7 +33,7 @@ import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
 import { getSingleSearchParam } from "@/lib/url"
 
-import { createShipmentAction } from "../actions"
+import { cancelOrderAction, createShipmentAction } from "../actions"
 
 type OrderPageProps = {
   params: Promise<{ id: string }>
@@ -91,6 +91,10 @@ function getStatusVariant(status: OrderStatus) {
 
   if (status === "partial") {
     return "default"
+  }
+
+  if (status === "canceled") {
+    return "destructive"
   }
 
   return "outline"
@@ -242,24 +246,34 @@ export default async function OrderDetailPage({
   }))
   const boundShipmentAction = createShipmentAction.bind(null, id)
   const itemMap = new Map(items.map((item) => [item.orderItemId, item]))
+  const canEditOrder = order.status === "pending" && totalShippedQuantity === 0 && shipments.length === 0
+  const canCancelOrder = canEditOrder
+  const boundCancelAction = cancelOrderAction.bind(null, id, false)
 
   return (
     <div className="space-y-6">
       <PageIntro
-        eyebrow="Orders & Shipments"
+        eyebrow="交易管理"
         title={`訂單 ${id.slice(0, 8).toUpperCase()}`}
-        description="查看訂購、累計出貨與剩餘待出貨數量，並直接在同頁建立部分出貨。"
-        badges={[
-          `狀態：${orderStatusLabels[order.status]}`,
-          `下單時間：${formatDateTime(order.order_date)}`,
-        ]}
         aside={
           <div className="flex flex-wrap gap-3">
             <Button asChild variant="outline">
               <Link href="/orders">返回訂單列表</Link>
             </Button>
+            {canEditOrder ? (
+              <Button asChild variant="secondary">
+                <Link href={`/orders/${id}/edit`}>修改訂單</Link>
+              </Button>
+            ) : null}
+            {canCancelOrder ? (
+              <form action={boundCancelAction}>
+                <Button type="submit" variant="destructive">
+                  撤銷訂單
+                </Button>
+              </form>
+            ) : null}
             <Button asChild>
-              <Link href="/orders/new">新增訂單</Link>
+              <Link href="/orders/new">新增交易</Link>
             </Button>
           </div>
         }
@@ -393,9 +407,13 @@ export default async function OrderDetailPage({
             </div>
 
             <div className="rounded-3xl border border-primary/15 bg-primary/8 p-4">
-              <div className="text-sm font-medium text-foreground">待出貨總量</div>
+              <div className="text-sm font-medium text-foreground">
+                {order.status === "canceled" ? "訂單已撤銷" : "待出貨總量"}
+              </div>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                目前還有 {formatQuantity(totalRemainingQuantity)} g 尚未出貨，可直接在下方建立部分出貨。
+                {order.status === "canceled"
+                  ? "這張訂單已保留為撤銷狀態，不能再修改或建立出貨。"
+                  : `目前還有 ${formatQuantity(totalRemainingQuantity)} g 尚未出貨，可直接在下方建立部分出貨，或使用全部出貨一次結單。`}
               </p>
             </div>
           </CardContent>
@@ -407,13 +425,20 @@ export default async function OrderDetailPage({
         className="border border-border/60 bg-card/85 shadow-sm backdrop-blur"
       >
         <CardHeader>
-          <CardTitle>建立本次出貨</CardTitle>
+          <CardTitle>{order.status === "canceled" ? "出貨流程已關閉" : "建立本次出貨"}</CardTitle>
           <CardDescription>
-            輸入本次出貨數量後，訂單進度與庫存會立即更新。
+            {order.status === "canceled"
+              ? "撤銷後會保留訂單資料，但不能再安排出貨。"
+              : "輸入本次出貨數量後，訂單進度與庫存會立即更新；若庫存足夠，也可直接全部出貨一次結單。"}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {remainingItems.length === 0 ? (
+          {order.status === "canceled" ? (
+            <FormMessage
+              message="這張訂單已撤銷，不可再建立 shipment。"
+              tone="info"
+            />
+          ) : remainingItems.length === 0 ? (
             <FormMessage
               message="這張訂單已全部出貨完成，不需要再建立 shipment。"
               tone="info"

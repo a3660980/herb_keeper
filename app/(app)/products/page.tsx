@@ -99,10 +99,14 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       <PageIntro
         eyebrow="Products"
         title="藥材管理"
-        description="維護藥材品項、基準售價與安全庫存，列表同步呈現目前庫存與警示狀態。"
-        badges={["售價設定", "庫存狀態", "低庫存追蹤"]}
         aside={
           <div className="flex flex-wrap gap-3">
+            <Button asChild variant="outline">
+              <Link href="/products/inbounds">進貨歷史</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/products/inbounds/new">新增進貨</Link>
+            </Button>
             <Button asChild>
               <Link href="/products/new">新增藥材</Link>
             </Button>
@@ -137,7 +141,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       <Card className="border border-border/60 bg-card/85 shadow-sm backdrop-blur">
         <CardHeader>
           <CardTitle>搜尋與列表</CardTitle>
-          <CardDescription>目前支援依藥材名稱搜尋，並可直接進入編輯或刪除。</CardDescription>
+          <CardDescription>目前支援依藥材名稱搜尋，點擊藥材名稱可直接查看該藥材的基本資料、庫存與進貨紀錄。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <form method="get" className="flex flex-col gap-3 sm:flex-row">
@@ -194,9 +198,12 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                   return (
                     <TableRow key={product.product_id}>
                       <TableCell>
-                        <div className="font-medium text-foreground">
+                        <Link
+                          href={`/products/${product.product_id}`}
+                          className="font-medium text-foreground transition hover:text-primary hover:underline"
+                        >
                           {product.product_name}
-                        </div>
+                        </Link>
                         <div className="text-xs text-muted-foreground">
                           單位：{product.unit}
                         </div>
@@ -227,6 +234,11 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-2">
+                          <Button asChild size="sm" variant="secondary">
+                            <Link href={`/products/inbounds/new?productId=${product.product_id}`}>
+                              進貨
+                            </Link>
+                          </Button>
                           <Button asChild size="sm" variant="outline">
                             <Link href={`/products/${product.product_id}/edit`}>
                               編輯

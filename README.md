@@ -55,6 +55,14 @@ supabase db push
 supabase db push --include-seed
 ```
 
+若要同步 `supabase/config.toml` 內的 Auth 設定，例如停用公開 signup，還需要另外執行：
+
+```bash
+supabase config push
+```
+
+這一步需要 Supabase management access token；若尚未設定，repo 內的 config 會先更新，但 hosted 專案不會立即套用。
+
 目前資料庫 schema 與 seed 在：
 
 - `supabase/migrations/202604040001_initial_tcm_inventory.sql`
@@ -117,6 +125,65 @@ pnpm format
 
 ## 測試
 
+GitHub Actions CI 目前會在 `master`、`staging` 與所有 Pull Request 上自動執行 `pnpm lint`、`pnpm test:unit` 與 Playwright E2E。
+
+### GitHub Actions 自動備份到 Google Drive
+
+repo 內已提供 [`.github/workflows/supabase-backup-google-drive.yml`](.github/workflows/supabase-backup-google-drive.yml) 作為免費版自動備份流程。它會每天匯出 Supabase `public` schema 的 data-only dump，上傳到 Google Drive，並另外保留一份 7 天的 GitHub artifact。
+
+這支 workflow 預設保留最近 30 天的 Google Drive 備份；若要調整，可直接修改 workflow 內的 `BACKUP_RETENTION_DAYS`。
+
+#### 需要的 GitHub repository secrets
+
+- `SUPABASE_DB_URL`
+- `GDRIVE_SERVICE_ACCOUNT_JSON`
+- `GDRIVE_FOLDER_ID`
+
+`SUPABASE_DB_URL` 請使用 Supabase Dashboard 提供的 PostgreSQL connection string，建議選 direct connection 或 session mode，並保留 `sslmode=require`。
+
+`GDRIVE_SERVICE_ACCOUNT_JSON` 請填入 Google service account 的完整 JSON 金鑰內容。
+
+`GDRIVE_FOLDER_ID` 請填入你要存放備份的 Google Drive 資料夾 ID。
+
+#### Google Drive 設定步驟
+
+1. 到 Google Cloud 建立一個專用 project。
+2. 啟用 Google Drive API。
+3. 建立一個 service account。
+4. 建立 JSON key，將整份內容存成 GitHub secret `GDRIVE_SERVICE_ACCOUNT_JSON`。
+5. 在 Google Drive 建立一個備份專用資料夾。
+6. 把該資料夾分享給 service account 的 email。
+7. 從資料夾網址取出 folder ID，存成 GitHub secret `GDRIVE_FOLDER_ID`。
+
+#### workflow 目前的備份內容
+
+- 使用 `pg_dump`
+- 匯出格式為 custom dump
+- 只備份 `public` schema 的資料
+- 不包含 owner / privileges
+
+這個策略適合目前 repo 的 migration-first 做法：schema 與 RPC 仍以 `supabase/migrations/` 為主，資料備份則專注在營運資料本身。
+
+#### 還原範例
+
+先套用 migration 重建 schema，再用備份檔還原資料：
+
+```bash
+pg_restore \
+	--dbname="$TARGET_DB_URL" \
+	--data-only \
+	--no-owner \
+	--no-privileges \
+	--disable-triggers \
+	supabase-public-data-YYYYMMDDTHHMMSSZ.dump
+```
+
+如果要先驗證檔案完整性，可對照同名的 `.sha256` 檔：
+
+```bash
+shasum -a 256 -c supabase-public-data-YYYYMMDDTHHMMSSZ.dump.sha256
+```
+
 ### Unit tests
 
 `Vitest` 目前覆蓋 `lib/` 下的 formatter、URL helper、Supabase env helper，以及 customers / products / orders / sales 的表單與 payload helper。
@@ -128,18 +195,22 @@ pnpm test:unit:coverage
 
 ### Playwright E2E
 
-E2E 會使用真實登入帳號進行核心流程驗證，因此執行前需要提供測試帳號：
+E2E 使用預先在 Supabase Auth 建立的測試帳號登入並完成核心流程驗證。若 Supabase 啟用 email confirmation，測試會透過 service role 自動將既有測試帳號標記為已驗證，因此執行前需要提供以下環境變數：
 
 ```bash
+SUPABASE_SERVICE_ROLE_KEY=<service role key> \
 E2E_USER_EMAIL=<test user email> \
 E2E_USER_PASSWORD=<test user password> \
 pnpm test:e2e
 ```
 
+請先在 Supabase Dashboard 的 Authentication > Users 建立 `E2E_USER_EMAIL` 對應帳號，並讓密碼與 `E2E_USER_PASSWORD` 一致。
+
 預設會自行啟動 `http://127.0.0.1:3100` 的 Next.js dev server。若你已經有一個可用中的測試站，可改用：
 
 ```bash
 PLAYWRIGHT_BASE_URL=http://127.0.0.1:3006 \
+SUPABASE_SERVICE_ROLE_KEY=<service role key> \
 E2E_USER_EMAIL=<test user email> \
 E2E_USER_PASSWORD=<test user password> \
 pnpm test:e2e
@@ -151,10 +222,19 @@ pnpm test:e2e
 pnpm exec playwright install chromium
 ```
 
+若要讓 GitHub Actions 也執行 E2E，請在 GitHub repository secrets 設定至少這五個值：
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `E2E_USER_EMAIL`
+- `E2E_USER_PASSWORD`
+
 ## 認證與角色模型
 
-- 第一位透過 `/auth/register` 建立的帳號會自動成為 `admin`。
-- 後續註冊帳號預設為 `operator`。
+- 公開註冊入口已停用，帳號統一由 Supabase Auth 或管理端 API 建立。
+- 第一位在 Supabase Auth 建立的帳號會自動成為 `admin`。
+- 後續建立帳號預設為 `operator`。
 - `viewer` 角色預留給只讀帳號，可直接在 `public.profiles` 調整。
 - RLS 已啟用，匿名角色不再能直接讀寫營運資料表。
 - Orders / Shipments / Direct Sales 透過 security definer RPC 執行，但函式內仍會檢查登入者角色。
@@ -166,6 +246,8 @@ pnpm exec playwright install chromium
 ## 目前已完成的功能切片
 
 - Products CRUD
+- Inbounds 進貨歷史與供應商追蹤
+- Inbounds 進貨建立
 - Customers CRUD
 - Orders 建立與訂單詳情
 - Partial shipment 出貨流程
@@ -174,7 +256,7 @@ pnpm exec playwright install chromium
 - Reports 日報、月報、交易歷史與熱銷排行
 - 以資料庫 RPC + trigger 同步訂單履約與 inventory ledger
 - 以資料庫 RPC + trigger 同步現場銷貨與 inventory ledger
-- Email / Password 登入、註冊、登出與 proxy 保護
+- Email / Password 登入、登出與 proxy 保護
 - Profiles + app_role 權限模型與 RLS 保護
 
 ## 下一步
@@ -183,8 +265,8 @@ pnpm exec playwright install chromium
 
 - 在 staging 先跑 `supabase db push --include-seed` 驗證完整流程。
 - 在 production 只跑 `supabase db push`，不要帶入示範 seed。
-- 至少建立一位 `admin` 帳號，並確認 `public.profiles.role` 與 `is_active` 正確。
-- 確認 Supabase Auth 的 Email signup / password policy 符合營運需求。
+- 至少在 Supabase Auth 建立一位 `admin` 帳號，並確認 `public.profiles.role` 與 `is_active` 正確。
+- 確認 Supabase Auth 已關閉公開 Email signup，並只保留管理端建立帳號的流程。
 - 確認 Supabase Auth 的 `Site URL` 與 `Redirect URLs` 已對齊 Vercel 網域。
 - 以 `pnpm typecheck && pnpm lint && pnpm build` 做最後檢查。
 
@@ -192,6 +274,6 @@ pnpm exec playwright install chromium
 
 接下來可往更完整的上線硬化推進：
 
-- 盤點與補齊進貨 / 庫存調整 UI
+- 盤點與補齊庫存調整 UI
 - 為角色管理補一個 admin-only 的後台頁
 - 增加端對端 smoke test，固定驗證 direct sales / order shipment 主流程

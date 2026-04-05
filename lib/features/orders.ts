@@ -1,6 +1,16 @@
 import { z } from "zod"
 
-export const orderStatusOptions = ["pending", "partial", "completed"] as const
+import {
+  getCurrentDateTimeLocalValue,
+  localDateTimeToIsoString,
+  type TradeCustomerOption,
+  type TradeProductOption,
+} from "@/lib/features/trades"
+import { formatQuantity } from "@/lib/format"
+
+export { getCurrentDateTimeLocalValue, localDateTimeToIsoString }
+
+export const orderStatusOptions = ["pending", "partial", "completed", "canceled"] as const
 
 export type OrderStatus = (typeof orderStatusOptions)[number]
 
@@ -8,6 +18,7 @@ export const orderStatusLabels: Record<OrderStatus, string> = {
   pending: "待出貨",
   partial: "部分出貨",
   completed: "已完成",
+  canceled: "已撤銷",
 }
 
 export type OrderLineFormValues = {
@@ -54,20 +65,21 @@ export type ShipmentFormState = {
   values: ShipmentFormValues
 }
 
-export type OrderCustomerOption = {
-  id: string
-  name: string
-  phone: string
-  discountRate: number
+export type OrderCustomerOption = TradeCustomerOption
+
+export type OrderProductOption = TradeProductOption
+
+export type EditableOrderRecord = {
+  customerId: string
+  orderDate: string
+  note: string | null
 }
 
-export type OrderProductOption = {
+export type EditableOrderItemRecord = {
   id: string
-  name: string
-  basePrice: number
-  unit: string
-  availableStock: number
-  isLowStock: boolean
+  productId: string
+  orderedQuantity: number | string
+  finalUnitPrice: number | string
 }
 
 export type OrderDetailItem = {
@@ -111,6 +123,14 @@ function parseJsonPayload(value: FormDataEntryValue | null) {
 
 function toStringValue(value: unknown, fallback = "") {
   return typeof value === "string" ? value : fallback
+}
+
+function toNumericInputValue(value: number | string | null | undefined) {
+  if (typeof value === "number" || typeof value === "string") {
+    return String(value)
+  }
+
+  return ""
 }
 
 function toStringNumber(value: unknown, fallback = "0") {
@@ -207,40 +227,32 @@ export const shipmentFormSchema = z
         path: ["items"],
       })
     }
+
+    values.items.forEach((item, index) => {
+      const remainingQuantity = Number(item.remainingQuantity || 0)
+      const availableStock = Number(item.availableStock || 0)
+
+      if (item.shippedQuantity > remainingQuantity) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `本次出貨量不可超過待出貨 ${formatQuantity(remainingQuantity)}。`,
+          path: ["items", index, "shippedQuantity"],
+        })
+        return
+      }
+
+      if (item.shippedQuantity > availableStock) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `本次出貨量不可超過目前庫存 ${formatQuantity(availableStock)}。`,
+          path: ["items", index, "shippedQuantity"],
+        })
+      }
+    })
   })
 
 export type OrderPayload = z.output<typeof orderFormSchema>
 export type ShipmentPayload = z.output<typeof shipmentFormSchema>
-
-export function getCurrentDateTimeLocalValue(date = new Date()) {
-  const offset = date.getTimezoneOffset()
-  const localDate = new Date(date.getTime() - offset * 60_000)
-
-  return localDate.toISOString().slice(0, 16)
-}
-
-export function localDateTimeToIsoString(
-  value: string,
-  timezoneOffsetMinutes: number
-) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value)
-
-  if (!match) {
-    return null
-  }
-
-  const [, year, month, day, hour, minute] = match
-  const utcTimestamp =
-    Date.UTC(
-      Number(year),
-      Number(month) - 1,
-      Number(day),
-      Number(hour),
-      Number(minute)
-    ) + timezoneOffsetMinutes * 60_000
-
-  return new Date(utcTimestamp).toISOString()
-}
 
 export function createOrderLineFormValue(
   values: Partial<OrderLineFormValues> = {}
@@ -260,6 +272,35 @@ export function createEmptyOrderFormValues(): OrderFormValues {
     note: "",
     items: [createOrderLineFormValue()],
   }
+}
+
+function toLocalDateTimeInputValue(value: string) {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return getCurrentDateTimeLocalValue()
+  }
+
+  return getCurrentDateTimeLocalValue(date)
+}
+
+export function orderRecordToFormValues(
+  order: EditableOrderRecord,
+  items: EditableOrderItemRecord[]
+): OrderFormValues {
+  return normalizeOrderFormValues({
+    customerId: order.customerId,
+    orderDate: toLocalDateTimeInputValue(order.orderDate),
+    note: order.note ?? "",
+    items: items.map((item) =>
+      createOrderLineFormValue({
+        id: item.id,
+        productId: item.productId,
+        orderedQuantity: toNumericInputValue(item.orderedQuantity),
+        finalUnitPrice: toNumericInputValue(item.finalUnitPrice),
+      })
+    ),
+  })
 }
 
 export function normalizeOrderFormValues(input: unknown): OrderFormValues {
@@ -332,7 +373,7 @@ export function getOrderFieldErrors(
         third === "orderedQuantity" ||
         third === "finalUnitPrice"
       ) {
-        currentItemErrors[third] = issue.message
+        currentItemErrors[third] ??= issue.message
       }
 
       itemErrors[lineId] = currentItemErrors
@@ -340,7 +381,7 @@ export function getOrderFieldErrors(
     }
 
     if (first === "customerId" || first === "orderDate" || first === "note" || first === "items") {
-      fieldErrors[first] = issue.message
+      fieldErrors[first] ??= issue.message
     }
   })
 
@@ -376,6 +417,38 @@ export function createEmptyShipmentFormValues(
     shipmentDate: getCurrentDateTimeLocalValue(),
     note: "",
     items,
+  }
+}
+
+export function getShipmentLineLimit(
+  item: Pick<ShipmentLineFormValues, "remainingQuantity" | "availableStock">
+) {
+  return Math.min(
+    Number(item.remainingQuantity || 0),
+    Number(item.availableStock || 0)
+  )
+}
+
+export function canShipAllShipmentItems(items: ShipmentLineFormValues[]) {
+  return (
+    items.length > 0 &&
+    items.every((item) => {
+      const remainingQuantity = Number(item.remainingQuantity || 0)
+
+      return remainingQuantity > 0 && getShipmentLineLimit(item) >= remainingQuantity
+    })
+  )
+}
+
+export function fillShipmentFormWithAllRemaining(
+  values: ShipmentFormValues
+): ShipmentFormValues {
+  return {
+    ...values,
+    items: values.items.map((item) => ({
+      ...item,
+      shippedQuantity: toNumericInputValue(getShipmentLineLimit(item)),
+    })),
   }
 }
 
@@ -444,7 +517,7 @@ export function getShipmentFieldErrors(
       const currentItemErrors = itemErrors[orderItemId] ?? {}
 
       if (third === "shippedQuantity") {
-        currentItemErrors.shippedQuantity = issue.message
+        currentItemErrors.shippedQuantity ??= issue.message
       }
 
       itemErrors[orderItemId] = currentItemErrors
@@ -452,7 +525,7 @@ export function getShipmentFieldErrors(
     }
 
     if (first === "shipmentDate" || first === "note" || first === "items") {
-      fieldErrors[first] = issue.message
+      fieldErrors[first] ??= issue.message
     }
   })
 

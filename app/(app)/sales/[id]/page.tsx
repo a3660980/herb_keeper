@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { formatCurrency, formatDateTime, formatQuantity, toNumberValue } from "@/lib/format"
+import { formatCurrency, formatQuantity, toNumberValue } from "@/lib/format"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
 import { getSingleSearchParam } from "@/lib/url"
@@ -173,17 +173,15 @@ export default async function DirectSaleDetailPage({
   return (
     <div className="space-y-6">
       <PageIntro
-        eyebrow="Direct Sales"
+        eyebrow="交易管理"
         title={`銷貨單 ${id.slice(0, 8).toUpperCase()}`}
-        description="檢視現場銷貨的價格快照、營收、成本與毛利，所有資料都已經同步進 transaction history 與報表 view。"
-        badges={[`銷貨時間：${formatDateTime(sale.sale_date)}`]}
         aside={
           <div className="flex flex-wrap gap-3">
             <Button asChild variant="outline">
               <Link href="/sales">返回銷貨列表</Link>
             </Button>
             <Button asChild>
-              <Link href="/sales/new">新增銷貨</Link>
+              <Link href="/sales/new">新增交易</Link>
             </Button>
           </div>
         }

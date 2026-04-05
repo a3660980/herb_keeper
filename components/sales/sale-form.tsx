@@ -4,10 +4,15 @@ import { useActionState, useEffect, useEffectEvent, useRef, useState } from "rea
 
 import { FormMessage } from "@/components/app/form-message"
 import { SubmitButton } from "@/components/app/submit-button"
+import { QuickCreateCustomerSheet } from "@/components/customers/quick-create-customer-sheet"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  SearchableSelect,
+  type SearchableSelectOption,
+} from "@/components/ui/searchable-select"
 import { Textarea } from "@/components/ui/textarea"
 import { formatCurrency, formatDecimalInput, formatQuantity } from "@/lib/format"
 import {
@@ -16,6 +21,7 @@ import {
   type SaleFormState,
   type SaleProductOption,
 } from "@/lib/features/sales"
+import { cn } from "@/lib/utils"
 
 type SaleFormProps = {
   action: (
@@ -29,9 +35,6 @@ type SaleFormProps = {
   pendingLabel: string
 }
 
-const selectClassName =
-  "flex h-11 w-full rounded-[1.15rem] border border-border/70 bg-background/78 px-4 py-2 text-base text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] outline-none transition-[color,box-shadow,background-color,border-color] focus-visible:border-primary/30 focus-visible:ring-4 focus-visible:ring-ring/15 sm:text-sm"
-
 export function SaleForm({
   action,
   initialState,
@@ -41,18 +44,52 @@ export function SaleForm({
   pendingLabel,
 }: SaleFormProps) {
   const [state, formAction] = useActionState(action, initialState)
+  const [customerOptions, setCustomerOptions] = useState(customers)
   const [values, setValues] = useState(state.values)
   const timezoneOffsetRef = useRef<HTMLInputElement>(null)
+  const itemsScrollAreaRef = useRef<HTMLDivElement>(null)
+  const previousItemCountRef = useRef(state.values.items.length)
   const syncValuesFromAction = useEffectEvent((nextValues: typeof state.values) => {
     setValues(nextValues)
   })
 
   useEffect(() => {
+    setCustomerOptions(customers)
+  }, [customers])
+
+  useEffect(() => {
     syncValuesFromAction(state.values)
   }, [state.values])
 
+  useEffect(() => {
+    const previousItemCount = previousItemCountRef.current
+    previousItemCountRef.current = values.items.length
+
+    if (values.items.length <= previousItemCount) {
+      return
+    }
+
+    const scrollArea = itemsScrollAreaRef.current
+
+    if (!scrollArea) {
+      return
+    }
+
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    const animationFrameId = window.requestAnimationFrame(() => {
+      scrollArea.scrollTo({
+        top: scrollArea.scrollHeight,
+        behavior: prefersReducedMotion ? "auto" : "smooth",
+      })
+    })
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId)
+    }
+  }, [values.items.length])
+
   function findCustomer(customerId: string) {
-    return customers.find((customer) => customer.id === customerId)
+    return customerOptions.find((customer) => customer.id === customerId)
   }
 
   function findProduct(productId: string) {
@@ -90,6 +127,56 @@ export function SaleForm({
   const payload = JSON.stringify({
     ...values,
   })
+  const customerSelectOptions: SearchableSelectOption[] = customerOptions.map((customer) => ({
+    value: customer.id,
+    label: `${customer.name} (${customer.phone})`,
+    searchText: `${customer.name} ${customer.phone}`,
+    secondaryText: `折扣倍率 ${customer.discountRate}`,
+  }))
+  const productSelectOptions: SearchableSelectOption[] = products.map((product) => ({
+    value: product.id,
+    label: product.name,
+    searchText: product.name,
+    secondaryText: `庫存 ${formatQuantity(product.availableStock)} ${product.unit}`,
+  }))
+  const canRemoveItems = values.items.length > 1
+
+  function handleCustomerCreated(customer: SaleCustomerOption) {
+    setCustomerOptions((current) => {
+      const nextCustomers = [...current.filter((item) => item.id !== customer.id), customer]
+
+      nextCustomers.sort((left, right) => left.name.localeCompare(right.name, "zh-Hant"))
+
+      return nextCustomers
+    })
+    setValues((current) => ({
+      ...current,
+      customerId: customer.id,
+      items: current.items.map((item) => {
+        if (!item.productId) {
+          return item
+        }
+
+        const product = findProduct(item.productId)
+        const previousSuggested = getSuggestedUnitPrice(item.productId, current.customerId)
+        const nextSuggested = product
+          ? formatDecimalInput(product.basePrice * customer.discountRate)
+          : ""
+
+        if (
+          item.finalUnitPrice === "" ||
+          item.finalUnitPrice === previousSuggested
+        ) {
+          return {
+            ...item,
+            finalUnitPrice: nextSuggested,
+          }
+        }
+
+        return item
+      }),
+    }))
+  }
 
   return (
     <form
@@ -115,52 +202,58 @@ export function SaleForm({
         <div className="grid gap-5 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="customerId">客戶</Label>
-            <select
-              id="customerId"
-              value={values.customerId}
-              className={selectClassName}
-              onChange={(event) => {
-                const nextCustomerId = event.target.value
+            <div className="flex flex-col gap-2 md:flex-row">
+              <div className="min-w-0 flex-1">
+                <SearchableSelect
+                  id="customerId"
+                  value={values.customerId}
+                  options={customerSelectOptions}
+                  placeholder="請選擇客戶"
+                  searchPlaceholder="搜尋客戶名稱或電話"
+                  emptyMessage="找不到符合的客戶"
+                  clearLabel="清除客戶"
+                  ariaLabel="客戶"
+                  invalid={Boolean(state.fieldErrors.customerId)}
+                  onValueChange={(nextCustomerId) => {
 
-                setValues((current) => ({
-                  ...current,
-                  customerId: nextCustomerId,
-                  items: current.items.map((item) => {
-                    if (!item.productId) {
-                      return item
-                    }
+                    setValues((current) => ({
+                      ...current,
+                      customerId: nextCustomerId,
+                      items: current.items.map((item) => {
+                        if (!item.productId) {
+                          return item
+                        }
 
-                    const previousSuggested = getSuggestedUnitPrice(
-                      item.productId,
-                      current.customerId
-                    )
-                    const nextSuggested = getSuggestedUnitPrice(
-                      item.productId,
-                      nextCustomerId
-                    )
+                        const previousSuggested = getSuggestedUnitPrice(
+                          item.productId,
+                          current.customerId
+                        )
+                        const nextSuggested = getSuggestedUnitPrice(
+                          item.productId,
+                          nextCustomerId
+                        )
 
-                    if (
-                      item.finalUnitPrice === "" ||
-                      item.finalUnitPrice === previousSuggested
-                    ) {
-                      return {
-                        ...item,
-                        finalUnitPrice: nextSuggested,
-                      }
-                    }
+                        if (
+                          item.finalUnitPrice === "" ||
+                          item.finalUnitPrice === previousSuggested
+                        ) {
+                          return {
+                            ...item,
+                            finalUnitPrice: nextSuggested,
+                          }
+                        }
 
-                    return item
-                  }),
-                }))
-              }}
-            >
-              <option value="">請選擇客戶</option>
-              {customers.map((customer) => (
-                <option key={customer.id} value={customer.id}>
-                  {customer.name} ({customer.phone})
-                </option>
-              ))}
-            </select>
+                        return item
+                      }),
+                    }))
+                  }}
+                />
+              </div>
+              <QuickCreateCustomerSheet
+                onCreated={handleCustomerCreated}
+                triggerClassName="self-start md:shrink-0"
+              />
+            </div>
             {state.fieldErrors.customerId ? (
               <p className="text-sm text-destructive">
                 {state.fieldErrors.customerId}
@@ -242,7 +335,19 @@ export function SaleForm({
           <FormMessage message={state.fieldErrors.items} tone="error" />
         ) : null}
 
-        <div className="space-y-4">
+        <div className="overflow-hidden rounded-[1.35rem] border border-border/70 bg-card/55">
+          <div className="flex items-center justify-between gap-3 border-b border-border/60 bg-background/72 px-4 py-3">
+            <div className="text-xs font-medium tracking-[0.08em] text-muted-foreground">
+              共 {values.items.length} 筆明細
+            </div>
+            <div className="text-xs text-muted-foreground">新增列後只會在這個區塊內捲動</div>
+          </div>
+
+          <div
+            ref={itemsScrollAreaRef}
+            data-testid="sale-lines-scroll-area"
+            className="content-scrollbar max-h-[30rem] overflow-y-auto"
+          >
           {values.items.map((line, index) => {
             const product = findProduct(line.productId)
             const customer = findCustomer(values.customerId)
@@ -257,37 +362,49 @@ export function SaleForm({
               <div
                 key={line.id}
                 data-testid="sale-line"
-                className="rounded-[1.75rem] border border-border/70 bg-card/70 p-4 shadow-sm sm:p-5"
+                className={cn(
+                  "px-4 py-4 sm:px-5",
+                  index > 0 && "border-t border-border/60"
+                )}
               >
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium text-foreground">明細 {lineNumber}</div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setValues((current) => ({
-                        ...current,
-                        items:
-                          current.items.length === 1
-                            ? [createSaleLineFormValue()]
-                            : current.items.filter((item) => item.id !== line.id),
-                      }))
-                    }}
-                  >
-                    移除
-                  </Button>
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-7 items-center justify-center rounded-full border border-border/70 bg-background text-xs font-semibold text-foreground">
+                      {lineNumber}
+                    </span>
+                    <div className="text-sm font-medium text-foreground">銷貨明細</div>
+                  </div>
+                  {canRemoveItems ? (
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="ghost"
+                      className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:border-destructive/30 focus-visible:ring-destructive/15"
+                      onClick={() => {
+                        setValues((current) => ({
+                          ...current,
+                          items: current.items.filter((item) => item.id !== line.id),
+                        }))
+                      }}
+                    >
+                      移除
+                    </Button>
+                  ) : null}
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-[minmax(0,1.5fr)_10rem_11rem]">
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1.65fr)_10rem_10rem] lg:items-start">
                   <div className="space-y-2">
                     <Label>藥材</Label>
-                    <select
-                      aria-label={`銷貨明細 ${lineNumber} 藥材`}
+                    <SearchableSelect
+                      ariaLabel={`銷貨明細 ${lineNumber} 藥材`}
                       value={line.productId}
-                      className={selectClassName}
-                      onChange={(event) => {
-                        const nextProductId = event.target.value
+                      options={productSelectOptions}
+                      placeholder="請選擇藥材"
+                      searchPlaceholder="搜尋藥材名稱"
+                      emptyMessage="找不到符合的藥材"
+                      clearLabel="清除藥材"
+                      invalid={Boolean(lineErrors.productId)}
+                      onValueChange={(nextProductId) => {
 
                         updateLine(line.id, (currentLine) => ({
                           ...currentLine,
@@ -298,29 +415,9 @@ export function SaleForm({
                           ),
                         }))
                       }}
-                    >
-                      <option value="">請選擇藥材</option>
-                      {products.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.name}
-                        </option>
-                      ))}
-                    </select>
+                    />
                     {lineErrors.productId ? (
                       <p className="text-sm text-destructive">{lineErrors.productId}</p>
-                    ) : null}
-                    {product ? (
-                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                        <Badge variant="outline">
-                          基準售價 {formatCurrency(product.basePrice)}
-                        </Badge>
-                        <Badge variant="outline">
-                          即時庫存 {formatQuantity(product.availableStock)} {product.unit}
-                        </Badge>
-                        {product.isLowStock ? (
-                          <Badge variant="destructive">低庫存</Badge>
-                        ) : null}
-                      </div>
                     ) : null}
                   </div>
 
@@ -342,6 +439,11 @@ export function SaleForm({
                     {lineErrors.quantity ? (
                       <p className="text-sm text-destructive">{lineErrors.quantity}</p>
                     ) : null}
+                    {product ? (
+                      <p className="text-xs text-muted-foreground">單位 {product.unit}</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">請先選擇藥材</p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -364,12 +466,11 @@ export function SaleForm({
                         {lineErrors.finalUnitPrice}
                       </p>
                     ) : null}
-                    {product ? (
-                      <p className="text-xs text-muted-foreground">
-                        建議價 {formatCurrency(suggestedUnitPrice || product.basePrice)}
-                        {customer ? `，依客戶折扣 ${customer.discountRate}` : ""}
-                      </p>
-                    ) : null}
+                    <p className="text-xs text-muted-foreground">
+                      {product
+                        ? `建議價 ${formatCurrency(suggestedUnitPrice || product.basePrice)}${customer ? `，依客戶折扣 ${customer.discountRate}` : ""}`
+                        : "選擇藥材後帶入建議價"}
+                    </p>
                     {lineAmount > 0 ? (
                       <p className="text-xs text-muted-foreground">
                         小計 {formatCurrency(lineAmount)}
@@ -377,9 +478,22 @@ export function SaleForm({
                     ) : null}
                   </div>
                 </div>
+
+                {product ? (
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    <Badge variant="outline">
+                      基準售價 {formatCurrency(product.basePrice)}
+                    </Badge>
+                    <Badge variant="outline">
+                      即時庫存 {formatQuantity(product.availableStock)} {product.unit}
+                    </Badge>
+                    {product.isLowStock ? <Badge variant="destructive">低庫存</Badge> : null}
+                  </div>
+                ) : null}
               </div>
             )
           })}
+          </div>
         </div>
       </div>
 

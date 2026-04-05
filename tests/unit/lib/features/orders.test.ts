@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  canShipAllShipmentItems,
   createOrderFormState,
   createShipmentFormState,
+  fillShipmentFormWithAllRemaining,
   getOrderFieldErrors,
+  getShipmentLineLimit,
   getShipmentFieldErrors,
   localDateTimeToIsoString,
+  orderStatusLabels,
+  orderStatusOptions,
+  orderRecordToFormValues,
   orderFormSchema,
   orderPayloadToRpcItems,
   readOrderFormSubmission,
@@ -19,6 +25,11 @@ const productId = "22222222-2222-2222-2222-222222222222"
 const orderItemId = "33333333-3333-3333-3333-333333333333"
 
 describe("lib/features/orders", () => {
+  it("includes the canceled order status label", () => {
+    expect(orderStatusOptions).toContain("canceled")
+    expect(orderStatusLabels.canceled).toBe("已撤銷")
+  })
+
   it("converts a local datetime and timezone offset into ISO", () => {
     expect(localDateTimeToIsoString("2026-04-04T06:36", -480)).toBe(
       "2026-04-03T22:36:00.000Z"
@@ -115,6 +126,33 @@ describe("lib/features/orders", () => {
     })
   })
 
+  it("prefers the required order date error when the datetime is blank", () => {
+    const values = {
+      customerId,
+      orderDate: "",
+      note: "",
+      items: [
+        {
+          id: "line-1",
+          productId,
+          orderedQuantity: "1",
+          finalUnitPrice: "52",
+        },
+      ],
+    }
+    const result = orderFormSchema.safeParse(values)
+
+    expect(result.success).toBe(false)
+
+    if (result.success) {
+      throw new Error("Expected blank order date validation to fail")
+    }
+
+    const { fieldErrors } = getOrderFieldErrors(result.error, values)
+
+    expect(fieldErrors.orderDate).toBe("請選擇下單時間")
+  })
+
   it("maps order payloads to RPC items", () => {
     expect(
       orderPayloadToRpcItems({
@@ -135,6 +173,36 @@ describe("lib/features/orders", () => {
         product_id: productId,
         ordered_quantity: 2,
         final_unit_price: 52,
+      },
+    ])
+  })
+
+  it("builds editable order form values from an existing order", () => {
+    const values = orderRecordToFormValues(
+      {
+        customerId,
+        orderDate: "2026-04-04T06:36:00.000Z",
+        note: "保留原訂單內容",
+      },
+      [
+        {
+          id: orderItemId,
+          productId,
+          orderedQuantity: 2.5,
+          finalUnitPrice: 52,
+        },
+      ]
+    )
+
+    expect(values.customerId).toBe(customerId)
+    expect(values.note).toBe("保留原訂單內容")
+    expect(values.orderDate).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
+    expect(values.items).toEqual([
+      {
+        id: orderItemId,
+        productId,
+        orderedQuantity: "2.5",
+        finalUnitPrice: "52",
       },
     ])
   })
@@ -189,6 +257,81 @@ describe("lib/features/orders", () => {
 
     expect(state.values.shipmentDate).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
     expect(state.values.items).toHaveLength(1)
+  })
+
+  it("calculates the shipment limit from remaining quantity and stock", () => {
+    expect(
+      getShipmentLineLimit({
+        remainingQuantity: "3",
+        availableStock: "5",
+      })
+    ).toBe(3)
+
+    expect(
+      getShipmentLineLimit({
+        remainingQuantity: "3",
+        availableStock: "1.5",
+      })
+    ).toBe(1.5)
+  })
+
+  it("fills all shipment lines with the remaining quantity when stock is sufficient", () => {
+    const values = fillShipmentFormWithAllRemaining({
+      shipmentDate: "2026-04-04T06:36",
+      note: "",
+      items: [
+        {
+          orderItemId,
+          productId,
+          productName: "黃耆",
+          remainingQuantity: "2",
+          availableStock: "100",
+          unit: "g",
+          shippedQuantity: "0",
+        },
+        {
+          orderItemId: "44444444-4444-4444-4444-444444444444",
+          productId,
+          productName: "黨參",
+          remainingQuantity: "1.5",
+          availableStock: "2",
+          unit: "g",
+          shippedQuantity: "0",
+        },
+      ],
+    })
+
+    expect(values.items.map((item) => item.shippedQuantity)).toEqual(["2", "1.5"])
+  })
+
+  it("detects whether all shipment lines can be fulfilled in one batch", () => {
+    expect(
+      canShipAllShipmentItems([
+        {
+          orderItemId,
+          productId,
+          productName: "黃耆",
+          remainingQuantity: "2",
+          availableStock: "100",
+          unit: "g",
+          shippedQuantity: "0",
+        },
+      ])
+    ).toBe(true)
+
+    expect(
+      canShipAllShipmentItems([
+        {
+          orderItemId,
+          productId,
+          productName: "黃耆",
+          remainingQuantity: "2",
+          availableStock: "1",
+          unit: "g",
+          shippedQuantity: "0",
+        },
+      ])
+    ).toBe(false)
   })
 
   it("parses a shipment submission payload and timezone offset", () => {
@@ -263,6 +406,35 @@ describe("lib/features/orders", () => {
     expect(itemErrors[orderItemId]).toEqual({
       shippedQuantity: "請輸入數量",
     })
+  })
+
+  it("prefers the required shipment date error when the datetime is blank", () => {
+    const values = {
+      shipmentDate: "",
+      note: "",
+      items: [
+        {
+          orderItemId,
+          productId,
+          productName: "黃耆",
+          remainingQuantity: "2",
+          availableStock: "100",
+          unit: "g",
+          shippedQuantity: "1",
+        },
+      ],
+    }
+    const result = shipmentFormSchema.safeParse(values)
+
+    expect(result.success).toBe(false)
+
+    if (result.success) {
+      throw new Error("Expected blank shipment date validation to fail")
+    }
+
+    const { fieldErrors } = getShipmentFieldErrors(result.error, values)
+
+    expect(fieldErrors.shipmentDate).toBe("請選擇出貨時間")
   })
 
   it("requires at least one positive shipment quantity", () => {

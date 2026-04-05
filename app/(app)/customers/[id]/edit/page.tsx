@@ -23,7 +23,7 @@ export default async function EditCustomerPage({ params }: EditCustomerPageProps
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("customers")
-    .select("id, name, phone, type, discount_rate")
+    .select("id, name, phone, address, type, discount_rate")
     .eq("id", id)
     .maybeSingle()
 
@@ -39,7 +39,6 @@ export default async function EditCustomerPage({ params }: EditCustomerPageProps
       <PageIntro
         eyebrow="Customers"
         title={`編輯客戶：${customer.name}`}
-        description="更新客戶聯絡方式、分類與折扣倍率。這些設定會影響後續訂單與現場銷貨的預設價格計算。"
         aside={
           <Button asChild variant="outline">
             <Link href="/customers">返回客戶列表</Link>

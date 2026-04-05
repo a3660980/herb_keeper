@@ -183,3 +183,61 @@
     color: var(--foreground);
   }
 }
+
+@layer utilities {
+  .content-scrollbar,
+  .sidebar-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
+  }
+
+  .content-scrollbar {
+    scrollbar-color: color-mix(in oklab, var(--primary) 34%, white) transparent;
+  }
+
+  .sidebar-scrollbar {
+    scrollbar-color: color-mix(in oklab, var(--primary) 42%, white) transparent;
+  }
+
+  .content-scrollbar::-webkit-scrollbar,
+  .sidebar-scrollbar::-webkit-scrollbar {
+    width: 11px;
+  }
+
+  .content-scrollbar::-webkit-scrollbar-track,
+  .sidebar-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .content-scrollbar::-webkit-scrollbar-thumb,
+  .sidebar-scrollbar::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+  }
+
+  .content-scrollbar::-webkit-scrollbar-thumb {
+    background-color: color-mix(in oklab, var(--primary) 18%, white);
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--primary) 38%, white),
+      color-mix(in oklab, var(--accent) 52%, var(--primary) 22%)
+    );
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 12%, white);
+  }
+
+  .content-scrollbar:hover::-webkit-scrollbar-thumb {
+    background-color: color-mix(in oklab, var(--primary) 28%, white);
+  }
+
+  .sidebar-scrollbar:hover::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--primary) 48%, white),
+      color-mix(in oklab, var(--accent) 62%, var(--primary) 26%)
+    );
+  }
+}

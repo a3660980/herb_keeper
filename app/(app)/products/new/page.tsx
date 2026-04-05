@@ -7,20 +7,33 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   createProductFormState,
   emptyProductFormValues,
+  type ProductUnitRecord,
 } from "@/lib/features/products"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
+import { createClient } from "@/lib/supabase/server"
 
 import { createProductAction } from "../actions"
 
-export default function NewProductPage() {
+export default async function NewProductPage() {
   const supabaseEnvReady = hasSupabaseEnv()
+  let units: ProductUnitRecord[] = []
+
+  if (supabaseEnvReady) {
+    try {
+      const supabase = await createClient()
+      const { data } = await supabase.from("product_units").select("id, name").order("name")
+
+      units = (data ?? []) as ProductUnitRecord[]
+    } catch {
+      units = []
+    }
+  }
 
   return (
     <div className="space-y-6">
       <PageIntro
         eyebrow="Products"
         title="新增藥材"
-        description="建立新的藥材品項，基準售價與低庫存門檻會立即進入 Products 列表。平均成本維持由進貨資料自動推算。"
         aside={
           <Button asChild variant="outline">
             <Link href="/products">返回藥材列表</Link>
@@ -35,7 +48,11 @@ export default function NewProductPage() {
         <CardContent>
           <ProductForm
             action={createProductAction}
-            initialState={createProductFormState(emptyProductFormValues)}
+            initialState={createProductFormState({
+              ...emptyProductFormValues,
+              unit: units[0]?.name ?? "",
+            })}
+            units={units}
             submitLabel={supabaseEnvReady ? "建立藥材" : "資料來源未連接"}
             pendingLabel="建立中..."
           />

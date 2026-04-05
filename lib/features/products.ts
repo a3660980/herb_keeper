@@ -1,5 +1,7 @@
 import { z } from "zod"
 
+import { formatQuantity } from "@/lib/format"
+
 const productPriceField = z
   .string()
   .trim()
@@ -20,7 +22,7 @@ export const productFormSchema = z.object({
   name: z.string().trim().min(1, "請輸入藥材名稱"),
   basePrice: productPriceField,
   lowStockThreshold: productThresholdField,
-  unit: z.literal("g"),
+  unit: z.string().trim().min(1, "請選擇單位"),
 })
 
 export type ProductPayload = z.output<typeof productFormSchema>
@@ -29,7 +31,12 @@ export type ProductFormValues = {
   name: string
   basePrice: string
   lowStockThreshold: string
-  unit: "g"
+  unit: string
+}
+
+export type ProductUnitRecord = {
+  id: string
+  name: string
 }
 
 export type ProductFormState = {
@@ -63,7 +70,7 @@ export const emptyProductFormValues: ProductFormValues = {
   name: "",
   basePrice: "",
   lowStockThreshold: "0",
-  unit: "g",
+  unit: "",
 }
 
 export function createProductFormState(
@@ -76,7 +83,6 @@ export function createProductFormState(
     values: {
       ...emptyProductFormValues,
       ...values,
-      unit: "g",
     },
   }
 }
@@ -86,7 +92,7 @@ export function readProductFormValues(formData: FormData): ProductFormValues {
     name: String(formData.get("name") ?? ""),
     basePrice: String(formData.get("basePrice") ?? ""),
     lowStockThreshold: String(formData.get("lowStockThreshold") ?? ""),
-    unit: "g",
+    unit: String(formData.get("unit") ?? "").trim(),
   }
 }
 
@@ -108,6 +114,31 @@ export function productRecordToFormValues(
     name: product.name,
     basePrice: String(product.base_price ?? ""),
     lowStockThreshold: String(product.low_stock_threshold ?? "0"),
-    unit: product.unit === "g" ? "g" : "g",
+    unit: String(product.unit ?? "").trim(),
   }
+}
+
+function toNumberValue(value: number | string | null | undefined) {
+  return Number(value ?? 0)
+}
+
+export function getDeleteProductBlockedMessage(params: {
+  name: string
+  unit: string
+  cachedStockQuantity: number | string | null | undefined
+  ledgerStockQuantity: number | string | null | undefined
+}) {
+  const cachedStockQuantity = toNumberValue(params.cachedStockQuantity)
+  const ledgerStockQuantity = toNumberValue(params.ledgerStockQuantity)
+  const unit = params.unit.trim() || "單位"
+
+  if (cachedStockQuantity !== 0 || ledgerStockQuantity !== 0) {
+    if (cachedStockQuantity !== ledgerStockQuantity) {
+      return `藥材「${params.name}」目前還不能刪除，因為庫存尚未歸零且有帳存差異（系統庫存 ${formatQuantity(cachedStockQuantity)} ${unit}、帳面庫存 ${formatQuantity(ledgerStockQuantity)} ${unit}）。請先把庫存處理到 0。`
+    }
+
+    return `藥材「${params.name}」目前還有 ${formatQuantity(ledgerStockQuantity)} ${unit} 庫存，請先出清、做減損或調整為 0 後再刪除。`
+  }
+
+  return `藥材「${params.name}」已有進貨、減損或交易履歷，為了保留歷史資料，不能直接刪除。`
 }
