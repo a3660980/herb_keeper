@@ -373,7 +373,7 @@ export function getOrderFieldErrors(
         third === "orderedQuantity" ||
         third === "finalUnitPrice"
       ) {
-        currentItemErrors[third] = issue.message
+        currentItemErrors[third] ??= issue.message
       }
 
       itemErrors[lineId] = currentItemErrors
@@ -381,7 +381,7 @@ export function getOrderFieldErrors(
     }
 
     if (first === "customerId" || first === "orderDate" || first === "note" || first === "items") {
-      fieldErrors[first] = issue.message
+      fieldErrors[first] ??= issue.message
     }
   })
 
@@ -485,7 +485,7 @@ export function getShipmentFieldErrors(
       const currentItemErrors = itemErrors[orderItemId] ?? {}
 
       if (third === "shippedQuantity") {
-        currentItemErrors.shippedQuantity = issue.message
+        currentItemErrors.shippedQuantity ??= issue.message
       }
 
       itemErrors[orderItemId] = currentItemErrors
@@ -493,7 +493,7 @@ export function getShipmentFieldErrors(
     }
 
     if (first === "shipmentDate" || first === "note" || first === "items") {
-      fieldErrors[first] = issue.message
+      fieldErrors[first] ??= issue.message
     }
   })
 

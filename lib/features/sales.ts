@@ -202,7 +202,7 @@ export function getSaleFieldErrors(
       const currentItemErrors = itemErrors[lineId] ?? {}
 
       if (third === "productId" || third === "quantity" || third === "finalUnitPrice") {
-        currentItemErrors[third] = issue.message
+        currentItemErrors[third] ??= issue.message
       }
 
       itemErrors[lineId] = currentItemErrors
@@ -210,7 +210,7 @@ export function getSaleFieldErrors(
     }
 
     if (first === "customerId" || first === "saleDate" || first === "note" || first === "items") {
-      fieldErrors[first] = issue.message
+      fieldErrors[first] ??= issue.message
     }
   })
 

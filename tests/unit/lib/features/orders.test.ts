@@ -123,6 +123,33 @@ describe("lib/features/orders", () => {
     })
   })
 
+  it("prefers the required order date error when the datetime is blank", () => {
+    const values = {
+      customerId,
+      orderDate: "",
+      note: "",
+      items: [
+        {
+          id: "line-1",
+          productId,
+          orderedQuantity: "1",
+          finalUnitPrice: "52",
+        },
+      ],
+    }
+    const result = orderFormSchema.safeParse(values)
+
+    expect(result.success).toBe(false)
+
+    if (result.success) {
+      throw new Error("Expected blank order date validation to fail")
+    }
+
+    const { fieldErrors } = getOrderFieldErrors(result.error, values)
+
+    expect(fieldErrors.orderDate).toBe("請選擇下單時間")
+  })
+
   it("maps order payloads to RPC items", () => {
     expect(
       orderPayloadToRpcItems({
@@ -301,6 +328,35 @@ describe("lib/features/orders", () => {
     expect(itemErrors[orderItemId]).toEqual({
       shippedQuantity: "請輸入數量",
     })
+  })
+
+  it("prefers the required shipment date error when the datetime is blank", () => {
+    const values = {
+      shipmentDate: "",
+      note: "",
+      items: [
+        {
+          orderItemId,
+          productId,
+          productName: "黃耆",
+          remainingQuantity: "2",
+          availableStock: "100",
+          unit: "g",
+          shippedQuantity: "1",
+        },
+      ],
+    }
+    const result = shipmentFormSchema.safeParse(values)
+
+    expect(result.success).toBe(false)
+
+    if (result.success) {
+      throw new Error("Expected blank shipment date validation to fail")
+    }
+
+    const { fieldErrors } = getShipmentFieldErrors(result.error, values)
+
+    expect(fieldErrors.shipmentDate).toBe("請選擇出貨時間")
   })
 
   it("requires at least one positive shipment quantity", () => {
