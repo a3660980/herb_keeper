@@ -1,5 +1,4 @@
 import { FormMessage } from "@/components/app/form-message"
-import { SubmitButton } from "@/components/app/submit-button"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -8,11 +7,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { getSingleSearchParam } from "@/lib/url"
 
-import { signInAction } from "../actions"
+import { LoginForm } from "./login-form"
 
 type LoginPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
@@ -47,36 +44,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           {status ? <FormMessage message={status} tone="success" /> : null}
           {error ? <FormMessage message={error} tone="error" /> : null}
 
-          <form action={signInAction} className="flex flex-col gap-5">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="email">電子郵件</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                placeholder="you@herbkeeper.tw"
-                autoFocus
-                required
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="password">密碼</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                placeholder="請輸入密碼"
-                required
-              />
-            </div>
-
-            <SubmitButton type="submit" size="lg" className="w-full" pendingLabel="登入中...">
-              登入工作台
-            </SubmitButton>
-          </form>
+          <LoginForm />
         </CardContent>
       </Card>
     </div>
