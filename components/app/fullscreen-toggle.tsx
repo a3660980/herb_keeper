@@ -39,6 +39,13 @@ function isFullscreenActive(doc: FullscreenDocument) {
   return Boolean(doc.fullscreenElement || doc.webkitFullscreenElement)
 }
 
+function getFullscreenState(doc: FullscreenDocument) {
+  return {
+    isSupported: isFullscreenSupported(doc),
+    isFullscreen: isFullscreenActive(doc),
+  }
+}
+
 async function enterFullscreen(doc: FullscreenDocument) {
   const element = doc.documentElement as FullscreenElement
 
@@ -79,11 +86,15 @@ export function FullscreenToggle({
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [isPending, setIsPending] = useState(false)
 
-  const syncState = useEffectEvent(() => {
-    const doc = document as FullscreenDocument
+  function applyState(doc: FullscreenDocument) {
+    const nextState = getFullscreenState(doc)
 
-    setIsSupported(isFullscreenSupported(doc))
-    setIsFullscreen(isFullscreenActive(doc))
+    setIsSupported(nextState.isSupported)
+    setIsFullscreen(nextState.isFullscreen)
+  }
+
+  const syncState = useEffectEvent(() => {
+    applyState(document as FullscreenDocument)
   })
 
   useEffect(() => {
@@ -100,7 +111,7 @@ export function FullscreenToggle({
       document.removeEventListener("fullscreenchange", handleChange)
       document.removeEventListener("webkitfullscreenchange", handleChange)
     }
-  }, [syncState])
+  }, [])
 
   const buttonLabel = isFullscreen ? "離開全螢幕" : "進入全螢幕"
 
@@ -120,7 +131,7 @@ export function FullscreenToggle({
         await enterFullscreen(doc)
       }
     } catch {
-      syncState()
+      applyState(doc)
     } finally {
       setIsPending(false)
     }
