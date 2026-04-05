@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { registerAndLogin } from "./helpers/auth"
+import { login } from "./helpers/auth"
 import { runWithE2ECleanup } from "./helpers/cleanup"
 import { createUniquePhone, createUniqueSuffix } from "./helpers/factories"
 import { createCustomer, createProduct, searchCustomer, searchProduct } from "./helpers/operations"
@@ -14,7 +14,7 @@ test("operator can complete the core customer, product, order, shipment, and sal
 
   await runWithE2ECleanup(
     async () => {
-      await registerAndLogin(page)
+      await login(page)
 
       await createCustomer(page, {
         name: customerName,

@@ -55,6 +55,14 @@ supabase db push
 supabase db push --include-seed
 ```
 
+若要同步 `supabase/config.toml` 內的 Auth 設定，例如停用公開 signup，還需要另外執行：
+
+```bash
+supabase config push
+```
+
+這一步需要 Supabase management access token；若尚未設定，repo 內的 config 會先更新，但 hosted 專案不會立即套用。
+
 目前資料庫 schema 與 seed 在：
 
 - `supabase/migrations/202604040001_initial_tcm_inventory.sql`
@@ -130,7 +138,7 @@ pnpm test:unit:coverage
 
 ### Playwright E2E
 
-E2E 會先透過註冊頁建立測試帳號，再以同一組帳號登入並完成核心流程驗證。若 Supabase 啟用 email confirmation，測試會透過 service role 自動將該帳號標記為已驗證，因此執行前需要提供以下環境變數：
+E2E 使用預先在 Supabase Auth 建立的測試帳號登入並完成核心流程驗證。若 Supabase 啟用 email confirmation，測試會透過 service role 自動將既有測試帳號標記為已驗證，因此執行前需要提供以下環境變數：
 
 ```bash
 SUPABASE_SERVICE_ROLE_KEY=<service role key> \
@@ -138,6 +146,8 @@ E2E_USER_EMAIL=<test user email> \
 E2E_USER_PASSWORD=<test user password> \
 pnpm test:e2e
 ```
+
+請先在 Supabase Dashboard 的 Authentication > Users 建立 `E2E_USER_EMAIL` 對應帳號，並讓密碼與 `E2E_USER_PASSWORD` 一致。
 
 預設會自行啟動 `http://127.0.0.1:3100` 的 Next.js dev server。若你已經有一個可用中的測試站，可改用：
 
@@ -165,8 +175,9 @@ pnpm exec playwright install chromium
 
 ## 認證與角色模型
 
-- 第一位透過 `/auth/register` 建立的帳號會自動成為 `admin`。
-- 後續註冊帳號預設為 `operator`。
+- 公開註冊入口已停用，帳號統一由 Supabase Auth 或管理端 API 建立。
+- 第一位在 Supabase Auth 建立的帳號會自動成為 `admin`。
+- 後續建立帳號預設為 `operator`。
 - `viewer` 角色預留給只讀帳號，可直接在 `public.profiles` 調整。
 - RLS 已啟用，匿名角色不再能直接讀寫營運資料表。
 - Orders / Shipments / Direct Sales 透過 security definer RPC 執行，但函式內仍會檢查登入者角色。
@@ -188,7 +199,7 @@ pnpm exec playwright install chromium
 - Reports 日報、月報、交易歷史與熱銷排行
 - 以資料庫 RPC + trigger 同步訂單履約與 inventory ledger
 - 以資料庫 RPC + trigger 同步現場銷貨與 inventory ledger
-- Email / Password 登入、註冊、登出與 proxy 保護
+- Email / Password 登入、登出與 proxy 保護
 - Profiles + app_role 權限模型與 RLS 保護
 
 ## 下一步
@@ -197,8 +208,8 @@ pnpm exec playwright install chromium
 
 - 在 staging 先跑 `supabase db push --include-seed` 驗證完整流程。
 - 在 production 只跑 `supabase db push`，不要帶入示範 seed。
-- 至少建立一位 `admin` 帳號，並確認 `public.profiles.role` 與 `is_active` 正確。
-- 確認 Supabase Auth 的 Email signup / password policy 符合營運需求。
+- 至少在 Supabase Auth 建立一位 `admin` 帳號，並確認 `public.profiles.role` 與 `is_active` 正確。
+- 確認 Supabase Auth 已關閉公開 Email signup，並只保留管理端建立帳號的流程。
 - 確認 Supabase Auth 的 `Site URL` 與 `Redirect URLs` 已對齊 Vercel 網域。
 - 以 `pnpm typecheck && pnpm lint && pnpm build` 做最後檢查。
 

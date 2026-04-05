@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { registerAndLogin } from "./helpers/auth"
+import { login } from "./helpers/auth"
 import { runWithE2ECleanup } from "./helpers/cleanup"
 import { createUniqueSuffix } from "./helpers/factories"
 import { createProduct, createSupplier } from "./helpers/operations"
@@ -13,7 +13,7 @@ test("operator can record inventory disposal and see stock update", async ({ pag
 
   await runWithE2ECleanup(
     async () => {
-      await registerAndLogin(page)
+      await login(page)
 
       await createSupplier(page, {
         name: supplierName,

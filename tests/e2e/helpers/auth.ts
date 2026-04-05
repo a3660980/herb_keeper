@@ -2,12 +2,9 @@ import { expect, type Page } from "@playwright/test"
 
 import { confirmEmailForE2EUser } from "./supabase-admin"
 
-const DEFAULT_E2E_FULL_NAME = "Playwright 測試帳號"
-
 type E2ECredentials = {
   email: string
   password: string
-  fullName: string
 }
 
 function requireEnv(name: string) {
@@ -95,7 +92,6 @@ export function getE2ECredentials(): E2ECredentials {
   return {
     email: requireEnv("E2E_USER_EMAIL"),
     password: requireEnv("E2E_USER_PASSWORD"),
-    fullName: process.env.E2E_USER_FULL_NAME?.trim() || DEFAULT_E2E_FULL_NAME,
   }
 }
 
@@ -104,41 +100,10 @@ export async function login(page: Page) {
   const result = await tryPasswordLogin(page, credentials)
 
   if (result === "invalid-credentials") {
-    await registerAndLogin(page)
-    return
+    throw new Error(
+      "E2E_USER_EMAIL 尚未在 Supabase Auth 建立，或 E2E_USER_PASSWORD 不正確。請先在 Supabase 建立測試帳號後再執行 E2E。"
+    )
   }
 
   await finishLogin(page, credentials, result)
-}
-
-export async function registerAndLogin(page: Page) {
-  const credentials = getE2ECredentials()
-
-  await page.goto("/auth/register")
-  await page.getByLabel("顯示名稱").fill(credentials.fullName)
-  await page.getByLabel("電子郵件").fill(credentials.email)
-  await page.getByLabel("密碼", { exact: true }).fill(credentials.password)
-  await page.getByLabel("確認密碼", { exact: true }).fill(credentials.password)
-  await page.getByRole("button", { name: "建立帳號" }).click()
-
-  await page.waitForURL(/\/(auth\/(register|login)|dashboard)(\?|$)/)
-
-  if (/\/dashboard$/.test(page.url())) {
-    await expectDashboard(page)
-    return
-  }
-
-  if (
-    await page
-      .getByText("這個 Email 已經註冊過，請直接登入。", { exact: false })
-      .isVisible()
-  ) {
-    const result = await tryPasswordLogin(page, credentials)
-    await finishLogin(page, credentials, result)
-    return
-  }
-
-  await expect(page.getByText("帳號已建立", { exact: false })).toBeVisible()
-
-  await completeEmailVerification(page, credentials)
 }

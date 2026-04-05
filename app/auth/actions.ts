@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
-import { getAbsoluteUrl } from "@/lib/site-url"
 import { createClient } from "@/lib/supabase/server"
 import { withQueryString } from "@/lib/url"
+
+const REGISTRATION_DISABLED_MESSAGE = "註冊入口已停用，請由管理者在 Supabase 開通帳號。"
 
 function normalizeEmail(value: FormDataEntryValue | null) {
   return String(value ?? "").trim().toLowerCase()
@@ -69,58 +70,10 @@ export async function signInAction(formData: FormData) {
   redirect("/dashboard")
 }
 
-export async function signUpAction(formData: FormData) {
-  const fullName = String(formData.get("fullName") ?? "").trim()
-  const email = normalizeEmail(formData.get("email"))
-  const password = String(formData.get("password") ?? "")
-  const confirmPassword = String(formData.get("confirmPassword") ?? "")
-
-  if (!email || !password) {
-    redirect(
-      withQueryString("/auth/register", {
-        error: "請輸入完整的註冊資訊。",
-      })
-    )
-  }
-
-  if (password !== confirmPassword) {
-    redirect(
-      withQueryString("/auth/register", {
-        error: "兩次輸入的密碼不一致。",
-      })
-    )
-  }
-
-  const supabase = await createClient()
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: getAbsoluteUrl("/auth/login"),
-      data: {
-        full_name: fullName,
-      },
-    },
-  })
-
-  if (error) {
-    redirect(
-      withQueryString("/auth/register", {
-        error: getAuthErrorMessage(error),
-      })
-    )
-  }
-
-  revalidatePath("/", "layout")
-
-  if (data.session) {
-    redirect("/dashboard")
-  }
-
+export async function signUpAction() {
   redirect(
     withQueryString("/auth/login", {
-      status:
-        "帳號已建立。若專案啟用信箱驗證，請先完成驗證；否則可直接登入。",
+      error: REGISTRATION_DISABLED_MESSAGE,
     })
   )
 }

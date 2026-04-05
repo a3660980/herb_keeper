@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { registerAndLogin } from "./helpers/auth"
+import { login } from "./helpers/auth"
 import { runWithE2ECleanup } from "./helpers/cleanup"
 import { createUniquePhone, createUniqueSuffix } from "./helpers/factories"
 import { createCustomer, createProduct } from "./helpers/operations"
@@ -15,7 +15,7 @@ test("operator can cancel a pending order before any shipment", async ({ page })
 
   await runWithE2ECleanup(
     async () => {
-      await registerAndLogin(page)
+      await login(page)
 
       await createCustomer(page, {
         name: customerName,
