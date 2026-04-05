@@ -119,8 +119,8 @@ jobs:
           BACKUP_PATH="backups/$BACKUP_BASENAME"
 
           docker run --rm \
-            -e SUPABASE_DB_URL \
-            -e BACKUP_BASENAME \
+            -e SUPABASE_DB_URL="$SUPABASE_DB_URL" \
+            -e BACKUP_BASENAME="$BACKUP_BASENAME" \
             -v "$PWD/backups:/backups" \
             postgres:17 \
             sh -ceu '
