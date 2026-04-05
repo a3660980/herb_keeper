@@ -21,6 +21,7 @@ import {
   type SaleFormState,
   type SaleProductOption,
 } from "@/lib/features/sales"
+import { cn } from "@/lib/utils"
 
 type SaleFormProps = {
   action: (
@@ -304,7 +305,15 @@ export function SaleForm({
           <FormMessage message={state.fieldErrors.items} tone="error" />
         ) : null}
 
-        <div className="space-y-4">
+        <div className="overflow-hidden rounded-[1.35rem] border border-border/70 bg-card/55">
+          <div className="flex items-center justify-between gap-3 border-b border-border/60 bg-background/72 px-4 py-3">
+            <div className="text-xs font-medium tracking-[0.08em] text-muted-foreground">
+              共 {values.items.length} 筆明細
+            </div>
+            <div className="text-xs text-muted-foreground">新增列後只會在這個區塊內捲動</div>
+          </div>
+
+          <div className="content-scrollbar max-h-[30rem] overflow-y-auto">
           {values.items.map((line, index) => {
             const product = findProduct(line.productId)
             const customer = findCustomer(values.customerId)
@@ -319,13 +328,21 @@ export function SaleForm({
               <div
                 key={line.id}
                 data-testid="sale-line"
-                className="rounded-[1.75rem] border border-border/70 bg-card/70 p-4 shadow-sm sm:p-5"
+                className={cn(
+                  "px-4 py-4 sm:px-5",
+                  index > 0 && "border-t border-border/60"
+                )}
               >
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium text-foreground">明細 {lineNumber}</div>
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-7 items-center justify-center rounded-full border border-border/70 bg-background text-xs font-semibold text-foreground">
+                      {lineNumber}
+                    </span>
+                    <div className="text-sm font-medium text-foreground">銷貨明細</div>
+                  </div>
                   <Button
                     type="button"
-                    size="sm"
+                    size="xs"
                     variant="ghost"
                     onClick={() => {
                       setValues((current) => ({
@@ -341,7 +358,7 @@ export function SaleForm({
                   </Button>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-[minmax(0,1.5fr)_10rem_11rem]">
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1.65fr)_10rem_10rem] lg:items-start">
                   <div className="space-y-2">
                     <Label>藥材</Label>
                     <SearchableSelect
@@ -368,19 +385,6 @@ export function SaleForm({
                     {lineErrors.productId ? (
                       <p className="text-sm text-destructive">{lineErrors.productId}</p>
                     ) : null}
-                    {product ? (
-                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                        <Badge variant="outline">
-                          基準售價 {formatCurrency(product.basePrice)}
-                        </Badge>
-                        <Badge variant="outline">
-                          即時庫存 {formatQuantity(product.availableStock)} {product.unit}
-                        </Badge>
-                        {product.isLowStock ? (
-                          <Badge variant="destructive">低庫存</Badge>
-                        ) : null}
-                      </div>
-                    ) : null}
                   </div>
 
                   <div className="space-y-2">
@@ -401,6 +405,11 @@ export function SaleForm({
                     {lineErrors.quantity ? (
                       <p className="text-sm text-destructive">{lineErrors.quantity}</p>
                     ) : null}
+                    {product ? (
+                      <p className="text-xs text-muted-foreground">單位 {product.unit}</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">請先選擇藥材</p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -423,12 +432,11 @@ export function SaleForm({
                         {lineErrors.finalUnitPrice}
                       </p>
                     ) : null}
-                    {product ? (
-                      <p className="text-xs text-muted-foreground">
-                        建議價 {formatCurrency(suggestedUnitPrice || product.basePrice)}
-                        {customer ? `，依客戶折扣 ${customer.discountRate}` : ""}
-                      </p>
-                    ) : null}
+                    <p className="text-xs text-muted-foreground">
+                      {product
+                        ? `建議價 ${formatCurrency(suggestedUnitPrice || product.basePrice)}${customer ? `，依客戶折扣 ${customer.discountRate}` : ""}`
+                        : "選擇藥材後帶入建議價"}
+                    </p>
                     {lineAmount > 0 ? (
                       <p className="text-xs text-muted-foreground">
                         小計 {formatCurrency(lineAmount)}
@@ -436,9 +444,22 @@ export function SaleForm({
                     ) : null}
                   </div>
                 </div>
+
+                {product ? (
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    <Badge variant="outline">
+                      基準售價 {formatCurrency(product.basePrice)}
+                    </Badge>
+                    <Badge variant="outline">
+                      即時庫存 {formatQuantity(product.availableStock)} {product.unit}
+                    </Badge>
+                    {product.isLowStock ? <Badge variant="destructive">低庫存</Badge> : null}
+                  </div>
+                ) : null}
               </div>
             )
           })}
+          </div>
         </div>
       </div>
 

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation"
 import {
   createProductFormState,
   getProductFieldErrors,
+  getDeleteProductBlockedMessage,
   productFormSchema,
   readProductFormValues,
   type ProductFormState,
@@ -26,11 +27,15 @@ function getProductErrorMessage(error: { code?: string; message: string }, name:
     return `藥材「${name}」已存在，請改用其他名稱。`
   }
 
+  return error.message || "藥材資料寫入失敗，請稍後再試。"
+}
+
+function getDeleteProductErrorMessage(error: { code?: string; message: string }, name: string) {
   if (error.code === "23503") {
-    return "這個藥材已經被進貨、訂單或現場銷貨資料引用，無法刪除。"
+    return `藥材「${name}」已有進貨、減損或交易履歷，為了保留歷史資料，不能直接刪除。`
   }
 
-  return error.message || "藥材資料寫入失敗，請稍後再試。"
+  return error.message || `刪除藥材「${name}」失敗，請稍後再試。`
 }
 
 function getUnexpectedErrorMessage(error: unknown) {
@@ -198,21 +203,44 @@ export async function deleteProductAction(formData: FormData) {
     )
   }
 
+  let errorMessage = ""
+
   try {
     const supabase = await createClient()
-    const { error } = await supabase.from("products").delete().eq("id", productId)
+    const { data: inventorySnapshot, error: inventoryError } = await supabase
+      .from("current_inventory_view")
+      .select("product_name, unit, cached_stock_quantity, ledger_stock_quantity")
+      .eq("product_id", productId)
+      .maybeSingle()
 
-    if (error) {
-      redirect(
-        withQueryString("/products", {
-          error: getProductErrorMessage(error, productName),
-        })
-      )
+    if (inventoryError) {
+      errorMessage = inventoryError.message
+    } else if (
+      inventorySnapshot &&
+      (Number(inventorySnapshot.cached_stock_quantity ?? 0) !== 0 ||
+        Number(inventorySnapshot.ledger_stock_quantity ?? 0) !== 0)
+    ) {
+      errorMessage = getDeleteProductBlockedMessage({
+        name: String(inventorySnapshot.product_name ?? productName),
+        unit: String(inventorySnapshot.unit ?? ""),
+        cachedStockQuantity: inventorySnapshot.cached_stock_quantity,
+        ledgerStockQuantity: inventorySnapshot.ledger_stock_quantity,
+      })
+    } else {
+      const { error } = await supabase.from("products").delete().eq("id", productId)
+
+      if (error) {
+        errorMessage = getDeleteProductErrorMessage(error, productName)
+      }
     }
   } catch (error) {
+    errorMessage = getUnexpectedErrorMessage(error)
+  }
+
+  if (errorMessage) {
     redirect(
       withQueryString("/products", {
-        error: getUnexpectedErrorMessage(error),
+        error: errorMessage,
       })
     )
   }

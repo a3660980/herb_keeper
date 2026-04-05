@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   createProductFormState,
+  getDeleteProductBlockedMessage,
   getProductFieldErrors,
   productFormSchema,
   productRecordToFormValues,
@@ -67,5 +68,44 @@ describe("lib/features/products", () => {
       lowStockThreshold: "350",
       unit: "公斤",
     })
+  })
+
+  it("explains clearly when a product still has stock and cannot be deleted", () => {
+    expect(
+      getDeleteProductBlockedMessage({
+        name: "黃耆",
+        unit: "公斤",
+        cachedStockQuantity: 12,
+        ledgerStockQuantity: 12,
+      })
+    ).toBe(
+      "藥材「黃耆」目前還有 12 公斤 庫存，請先出清、做減損或調整為 0 後再刪除。"
+    )
+  })
+
+  it("explains clearly when a product has stock mismatch and cannot be deleted", () => {
+    expect(
+      getDeleteProductBlockedMessage({
+        name: "當歸",
+        unit: "g",
+        cachedStockQuantity: 8,
+        ledgerStockQuantity: 10,
+      })
+    ).toBe(
+      "藥材「當歸」目前還不能刪除，因為庫存尚未歸零且有帳存差異（系統庫存 8 g、帳面庫存 10 g）。請先把庫存處理到 0。"
+    )
+  })
+
+  it("explains clearly when a product has history even though stock is zero", () => {
+    expect(
+      getDeleteProductBlockedMessage({
+        name: "枸杞",
+        unit: "公斤",
+        cachedStockQuantity: 0,
+        ledgerStockQuantity: 0,
+      })
+    ).toBe(
+      "藥材「枸杞」已有進貨、減損或交易履歷，為了保留歷史資料，不能直接刪除。"
+    )
   })
 })

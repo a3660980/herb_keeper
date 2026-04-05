@@ -1,5 +1,7 @@
 import { z } from "zod"
 
+import { formatQuantity } from "@/lib/format"
+
 const productPriceField = z
   .string()
   .trim()
@@ -114,4 +116,29 @@ export function productRecordToFormValues(
     lowStockThreshold: String(product.low_stock_threshold ?? "0"),
     unit: String(product.unit ?? "").trim(),
   }
+}
+
+function toNumberValue(value: number | string | null | undefined) {
+  return Number(value ?? 0)
+}
+
+export function getDeleteProductBlockedMessage(params: {
+  name: string
+  unit: string
+  cachedStockQuantity: number | string | null | undefined
+  ledgerStockQuantity: number | string | null | undefined
+}) {
+  const cachedStockQuantity = toNumberValue(params.cachedStockQuantity)
+  const ledgerStockQuantity = toNumberValue(params.ledgerStockQuantity)
+  const unit = params.unit.trim() || "單位"
+
+  if (cachedStockQuantity !== 0 || ledgerStockQuantity !== 0) {
+    if (cachedStockQuantity !== ledgerStockQuantity) {
+      return `藥材「${params.name}」目前還不能刪除，因為庫存尚未歸零且有帳存差異（系統庫存 ${formatQuantity(cachedStockQuantity)} ${unit}、帳面庫存 ${formatQuantity(ledgerStockQuantity)} ${unit}）。請先把庫存處理到 0。`
+    }
+
+    return `藥材「${params.name}」目前還有 ${formatQuantity(ledgerStockQuantity)} ${unit} 庫存，請先出清、做減損或調整為 0 後再刪除。`
+  }
+
+  return `藥材「${params.name}」已有進貨、減損或交易履歷，為了保留歷史資料，不能直接刪除。`
 }

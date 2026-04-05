@@ -129,7 +129,7 @@ async function loadCustomerIds(supabase: ReturnType<typeof createAdminClient>, t
 
 async function deleteLedgerEntries(
   supabase: ReturnType<typeof createAdminClient>,
-  sourceType: "shipment" | "direct_sale",
+  sourceType: "inbound" | "shipment" | "direct_sale" | "adjustment",
   sourceIds: string[]
 ) {
   if (sourceIds.length === 0) {
@@ -215,6 +215,7 @@ export async function cleanupE2EData(targets: E2ECleanupTargets) {
   }
 
   const productNames = getUniqueValues(targets.productNames)
+  let productIds: string[] = []
 
   if (productNames.length > 0) {
     const { data: products, error: productsError } = await supabase
@@ -224,7 +225,75 @@ export async function cleanupE2EData(targets: E2ECleanupTargets) {
 
     throwIfError(productsError, "Failed to load E2E products")
 
-    const productIds = collectIds(products)
+    productIds = collectIds(products)
+  }
+
+  const supplierNames = getUniqueValues(targets.supplierNames)
+  let supplierIds: string[] = []
+
+  if (supplierNames.length > 0) {
+    const { data: suppliers, error: suppliersError } = await supabase
+      .from("suppliers")
+      .select("id")
+      .in("name", supplierNames)
+
+    throwIfError(suppliersError, "Failed to load E2E suppliers")
+
+    supplierIds = collectIds(suppliers)
+  }
+
+  if (productIds.length > 0 || supplierIds.length > 0) {
+    const inboundIds = new Set<string>()
+    const inventoryAdjustmentIds = new Set<string>()
+
+    if (productIds.length > 0) {
+      const [{ data: inboundsByProduct, error: inboundsByProductError }, { data: adjustments, error: adjustmentsError }] =
+        await Promise.all([
+          supabase.from("inbounds").select("id").in("product_id", productIds),
+          supabase.from("inventory_adjustments").select("id").in("product_id", productIds),
+        ])
+
+      throwIfError(inboundsByProductError, "Failed to load E2E inbounds by product")
+      throwIfError(adjustmentsError, "Failed to load E2E inventory adjustments")
+
+      collectIds(inboundsByProduct).forEach((id) => inboundIds.add(id))
+      collectIds(adjustments).forEach((id) => inventoryAdjustmentIds.add(id))
+    }
+
+    if (supplierIds.length > 0) {
+      const { data: inboundsBySupplier, error: inboundsBySupplierError } = await supabase
+        .from("inbounds")
+        .select("id")
+        .in("supplier_id", supplierIds)
+
+      throwIfError(inboundsBySupplierError, "Failed to load E2E inbounds by supplier")
+
+      collectIds(inboundsBySupplier).forEach((id) => inboundIds.add(id))
+    }
+
+    const resolvedInboundIds = [...inboundIds]
+    const resolvedInventoryAdjustmentIds = [...inventoryAdjustmentIds]
+
+    await deleteLedgerEntries(supabase, "inbound", resolvedInboundIds)
+    await deleteLedgerEntries(supabase, "adjustment", resolvedInventoryAdjustmentIds)
+
+    if (resolvedInventoryAdjustmentIds.length > 0) {
+      const { error: deleteInventoryAdjustmentsError } = await supabase
+        .from("inventory_adjustments")
+        .delete()
+        .in("id", resolvedInventoryAdjustmentIds)
+
+      throwIfError(deleteInventoryAdjustmentsError, "Failed to delete E2E inventory adjustments")
+    }
+
+    if (resolvedInboundIds.length > 0) {
+      const { error: deleteInboundsError } = await supabase
+        .from("inbounds")
+        .delete()
+        .in("id", resolvedInboundIds)
+
+      throwIfError(deleteInboundsError, "Failed to delete E2E inbounds")
+    }
 
     if (productIds.length > 0) {
       const { error: deleteProductsError } = await supabase
@@ -236,25 +305,12 @@ export async function cleanupE2EData(targets: E2ECleanupTargets) {
     }
   }
 
-  const supplierNames = getUniqueValues(targets.supplierNames)
-
-  if (supplierNames.length > 0) {
-    const { data: suppliers, error: suppliersError } = await supabase
-      .from("suppliers")
-      .select("id")
-      .in("name", supplierNames)
-
-    throwIfError(suppliersError, "Failed to load E2E suppliers")
-
-    const supplierIds = collectIds(suppliers)
-
-    if (supplierIds.length > 0) {
+  if (supplierIds.length > 0) {
       const { error: deleteSuppliersError } = await supabase
         .from("suppliers")
         .delete()
         .in("id", supplierIds)
 
       throwIfError(deleteSuppliersError, "Failed to delete E2E suppliers")
-    }
   }
 }

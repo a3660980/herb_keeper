@@ -23,7 +23,7 @@ import {
 import { formatCurrency, formatQuantity, toNumberValue } from "@/lib/format"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
-import { getSingleSearchParam } from "@/lib/url"
+import { getSingleSearchParam, withQueryString } from "@/lib/url"
 
 type InventoryPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
@@ -113,9 +113,17 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
         eyebrow="Inventory"
         title="庫存總覽"
         aside={
-          <Button asChild variant="outline">
-            <Link href="/products">前往藥材管理</Link>
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            <Button asChild>
+              <Link href="/inventory/disposals/new">新增減損</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/inventory/disposals">減損歷史</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/products">前往藥材管理</Link>
+            </Button>
+          </div>
         }
       />
 
@@ -194,6 +202,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
                   <TableHead>帳面庫存</TableHead>
                   <TableHead>差異</TableHead>
                   <TableHead>狀態</TableHead>
+                  <TableHead>操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -206,7 +215,12 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
                   return (
                     <TableRow key={item.product_id}>
                       <TableCell>
-                        <div className="font-medium text-foreground">{item.product_name}</div>
+                        <Link
+                          href={`/products/${item.product_id}`}
+                          className="font-medium text-foreground transition-colors hover:text-primary"
+                        >
+                          {item.product_name}
+                        </Link>
                         <div className="text-xs text-muted-foreground">單位：{item.unit}</div>
                       </TableCell>
                       <TableCell>{formatCurrency(item.base_price)}</TableCell>
@@ -235,6 +249,21 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
                             <Badge variant="outline">帳存差異</Badge>
                           ) : null}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {ledger > 0 ? (
+                          <Button asChild size="sm" variant="outline">
+                            <Link
+                              href={withQueryString("/inventory/disposals/new", {
+                                productId: item.product_id,
+                              })}
+                            >
+                              減損
+                            </Link>
+                          </Button>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">無可減損庫存</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   )

@@ -23,6 +23,10 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { formatCurrency, formatDateTime, formatQuantity, toNumberValue } from "@/lib/format"
+import {
+  inventoryDisposalReasonLabels,
+  type InventoryDisposalReason,
+} from "@/lib/features/inventory-disposals"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
 import { getSingleSearchParam, withQueryString } from "@/lib/url"
@@ -83,6 +87,24 @@ type SupplierOption = {
   name: string
 }
 
+type RawInventoryDisposalRow = {
+  id: string
+  quantity: number | string
+  reason: InventoryDisposalReason
+  occurred_at: string
+  unit_cost_snapshot: number | string
+  note: string | null
+}
+
+type InventoryDisposalRow = {
+  id: string
+  quantity: number | string
+  reason: InventoryDisposalReason
+  occurredAt: string
+  unitCostSnapshot: number | string
+  note: string
+}
+
 type RawTransactionRow = {
   transaction_type: "shipment" | "direct_sale"
   transaction_id: string
@@ -112,6 +134,7 @@ type TransactionRow = {
 }
 
 const INBOUND_PAGE_SIZE = 12
+const DISPOSAL_PAGE_SIZE = 12
 const TRANSACTION_PAGE_SIZE = 12
 
 function normalizeRelation<T>(value: T | T[] | null) {
@@ -231,6 +254,18 @@ function getTransactionDetailLabel(row: TransactionRow) {
   return row.transactionType === "shipment" ? "查看訂單" : "查看銷貨"
 }
 
+function getInventoryDisposalReasonBadgeVariant(reason: InventoryDisposalReason) {
+  switch (reason) {
+    case "damage":
+    case "disaster":
+      return "destructive" as const
+    case "quality_return":
+      return "secondary" as const
+    default:
+      return "outline" as const
+  }
+}
+
 export default async function ProductDetailPage({
   params,
   searchParams,
@@ -243,6 +278,7 @@ export default async function ProductDetailPage({
   const startDate = readDateParam(query.startDate)
   const endDate = readDateParam(query.endDate)
   const requestedInboundPage = readPageParam(query.inboundPage ?? query.page)
+  const requestedDisposalPage = readPageParam(query.disposalPage)
   const requestedTransactionPage = readPageParam(query.transactionPage)
   const supabaseEnvReady = hasSupabaseEnv()
   const dateRangeError =
@@ -255,7 +291,7 @@ export default async function ProductDetailPage({
   }
 
   const supabase = await createClient()
-  const [productResponse, inventoryResponse, inboundResponse, transactionResponse] = await Promise.all([
+  const [productResponse, inventoryResponse, inboundResponse, disposalResponse, transactionResponse] = await Promise.all([
     supabase
       .from("products")
       .select("id, name, base_price, avg_unit_cost, low_stock_threshold, unit, created_at, updated_at")
@@ -271,6 +307,11 @@ export default async function ProductDetailPage({
       .select("id, supplier_id, quantity, unit_cost, inbound_date, note, supplier:suppliers(id, name, phone, address)")
       .eq("product_id", id)
       .order("inbound_date", { ascending: false }),
+    supabase
+      .from("inventory_adjustments")
+      .select("id, quantity, reason, occurred_at, unit_cost_snapshot, note")
+      .eq("product_id", id)
+      .order("occurred_at", { ascending: false }),
     supabase
       .from("transaction_history_view")
       .select(
@@ -301,6 +342,15 @@ export default async function ProductDetailPage({
     note: row.note ?? "",
     supplier: normalizeRelation(row.supplier),
   }))
+  const allDisposalRows: InventoryDisposalRow[] =
+    ((disposalResponse.data ?? []) as RawInventoryDisposalRow[]).map((row) => ({
+      id: row.id,
+      quantity: row.quantity,
+      reason: row.reason,
+      occurredAt: row.occurred_at,
+      unitCostSnapshot: row.unit_cost_snapshot,
+      note: row.note ?? "",
+    }))
   const allTransactionRows: TransactionRow[] =
     ((transactionResponse.data ?? []) as RawTransactionRow[]).map((row) => ({
       transactionType: row.transaction_type,
@@ -318,6 +368,7 @@ export default async function ProductDetailPage({
   const loadError =
     inventoryResponse.error?.message ??
     inboundResponse.error?.message ??
+    disposalResponse.error?.message ??
     transactionResponse.error?.message ??
     ""
   const supplierOptions: SupplierOption[] = Array.from(
@@ -329,11 +380,15 @@ export default async function ProductDetailPage({
   ).sort((left, right) => left.name.localeCompare(right.name, "zh-Hant"))
 
   let inboundRows = allInboundRows
+  let disposalRows = allDisposalRows
   let transactionRows = allTransactionRows
 
   if (!dateRangeError && (startDate || endDate)) {
     inboundRows = inboundRows.filter((row) =>
       isWithinDateRange(row.inboundDate, startDate, endDate)
+    )
+    disposalRows = disposalRows.filter((row) =>
+      isWithinDateRange(row.occurredAt, startDate, endDate)
     )
     transactionRows = transactionRows.filter((row) =>
       isWithinDateRange(row.transactionDate, startDate, endDate)
@@ -354,6 +409,12 @@ export default async function ProductDetailPage({
   const totalInboundQuantity = inboundRows.reduce((sum, row) => {
     return sum + toNumberValue(row.quantity)
   }, 0)
+  const totalDisposalAmount = disposalRows.reduce((sum, row) => {
+    return sum + toNumberValue(row.quantity) * toNumberValue(row.unitCostSnapshot)
+  }, 0)
+  const totalDisposalQuantity = disposalRows.reduce((sum, row) => {
+    return sum + toNumberValue(row.quantity)
+  }, 0)
   const totalTransactionRevenue = transactionRows.reduce((sum, row) => {
     return sum + toNumberValue(row.revenue)
   }, 0)
@@ -367,6 +428,7 @@ export default async function ProductDetailPage({
     allInboundRows.map((row) => row.supplier?.id).filter(Boolean)
   ).size
   const latestInboundDate = inboundRows[0]?.inboundDate ?? ""
+  const latestDisposalDate = disposalRows[0]?.occurredAt ?? ""
   const latestTransactionDate = transactionRows[0]?.transactionDate ?? ""
   const hasActiveFilters = Boolean(selectedSupplierId || startDate || endDate)
   const inboundTotalPages = Math.max(1, Math.ceil(inboundRows.length / INBOUND_PAGE_SIZE))
@@ -376,6 +438,21 @@ export default async function ProductDetailPage({
   const inboundPageStart = inboundRows.length === 0 ? 0 : inboundStartIndex + 1
   const inboundPageEnd = inboundRows.length === 0 ? 0 : Math.min(inboundStartIndex + INBOUND_PAGE_SIZE, inboundRows.length)
   const inboundPaginationItems = inboundRows.length === 0 ? [] : getPaginationItems(inboundTotalPages, currentInboundPage)
+  const disposalTotalPages = Math.max(1, Math.ceil(disposalRows.length / DISPOSAL_PAGE_SIZE))
+  const currentDisposalPage =
+    disposalRows.length === 0 ? 1 : Math.min(requestedDisposalPage, disposalTotalPages)
+  const disposalStartIndex = (currentDisposalPage - 1) * DISPOSAL_PAGE_SIZE
+  const paginatedDisposalRows = disposalRows.slice(
+    disposalStartIndex,
+    disposalStartIndex + DISPOSAL_PAGE_SIZE
+  )
+  const disposalPageStart = disposalRows.length === 0 ? 0 : disposalStartIndex + 1
+  const disposalPageEnd =
+    disposalRows.length === 0
+      ? 0
+      : Math.min(disposalStartIndex + DISPOSAL_PAGE_SIZE, disposalRows.length)
+  const disposalPaginationItems =
+    disposalRows.length === 0 ? [] : getPaginationItems(disposalTotalPages, currentDisposalPage)
   const transactionTotalPages = Math.max(1, Math.ceil(transactionRows.length / TRANSACTION_PAGE_SIZE))
   const currentTransactionPage =
     transactionRows.length === 0 ? 1 : Math.min(requestedTransactionPage, transactionTotalPages)
@@ -400,6 +477,7 @@ export default async function ProductDetailPage({
     startDate?: string
     endDate?: string
     inboundPage?: number
+    disposalPage?: number
     transactionPage?: number
   }) =>
     withQueryString(`/products/${id}`, {
@@ -409,6 +487,10 @@ export default async function ProductDetailPage({
       inboundPage:
         overrides.inboundPage && overrides.inboundPage > 1
           ? String(overrides.inboundPage)
+          : undefined,
+      disposalPage:
+        overrides.disposalPage && overrides.disposalPage > 1
+          ? String(overrides.disposalPage)
           : undefined,
       transactionPage:
         overrides.transactionPage && overrides.transactionPage > 1
@@ -421,6 +503,16 @@ export default async function ProductDetailPage({
       startDate: startDate || undefined,
       endDate: endDate || undefined,
       inboundPage: page,
+      disposalPage: currentDisposalPage,
+      transactionPage: currentTransactionPage,
+    })
+  const buildDisposalPageHref = (page: number) =>
+    buildDetailHref({
+      supplierId: selectedSupplierId || undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      inboundPage: currentInboundPage,
+      disposalPage: page,
       transactionPage: currentTransactionPage,
     })
   const buildTransactionPageHref = (page: number) =>
@@ -429,6 +521,7 @@ export default async function ProductDetailPage({
       startDate: startDate || undefined,
       endDate: endDate || undefined,
       inboundPage: currentInboundPage,
+      disposalPage: currentDisposalPage,
       transactionPage: page,
     })
 
@@ -437,7 +530,7 @@ export default async function ProductDetailPage({
       <PageIntro
         eyebrow="Products"
         title={product.name}
-        description={`單位 ${product.unit}，在同一頁查看基本資料、庫存概況，以及完整的進貨、出貨與銷貨履歷。`}
+        description={`單位 ${product.unit}，在同一頁查看基本資料、庫存概況，以及完整的進貨、減損、出貨與銷貨履歷。`}
         aside={
           <div className="flex flex-wrap gap-3">
             <Button asChild>
@@ -445,6 +538,13 @@ export default async function ProductDetailPage({
                 新增進貨
               </Link>
             </Button>
+            {ledgerStock > 0 ? (
+              <Button asChild variant="outline">
+                <Link href={withQueryString("/inventory/disposals/new", { productId: id })}>
+                  新增減損
+                </Link>
+              </Button>
+            ) : null}
             <Button asChild variant="outline">
               <Link href={`/products/${id}/edit`}>編輯藥材</Link>
             </Button>
@@ -464,7 +564,7 @@ export default async function ProductDetailPage({
         <CardHeader>
           <CardTitle>履歷篩選</CardTitle>
           <CardDescription>
-            日期區間會同時套用進貨與出貨/銷貨紀錄；供應商篩選只會套用在進貨紀錄。
+            日期區間會同時套用進貨、減損與出貨/銷貨紀錄；供應商篩選只會套用在進貨紀錄。
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -677,6 +777,131 @@ export default async function ProductDetailPage({
                         {currentInboundPage < inboundTotalPages ? (
                           <Button asChild size="sm" variant="outline">
                             <Link href={buildInboundPageHref(currentInboundPage + 1)}>下一頁</Link>
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="outline" disabled>
+                            下一頁
+                          </Button>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border border-border/60 bg-card/85 shadow-sm backdrop-blur">
+            <CardHeader>
+              <CardTitle>減損紀錄</CardTitle>
+              <CardDescription>
+                共 {disposalRows.length} 筆，累計減損 {formatQuantity(totalDisposalQuantity)} {product.unit}，估計損失成本 {formatCurrency(totalDisposalAmount)}。
+                {latestDisposalDate ? ` 最近一筆減損：${formatDateTime(latestDisposalDate)}。` : ""}
+              </CardDescription>
+              <CardAction>
+                <Button asChild size="sm" variant="outline">
+                  <Link
+                    href={withQueryString("/inventory/disposals", {
+                      productId: id,
+                      startDate: startDate || undefined,
+                      endDate: endDate || undefined,
+                    })}
+                  >
+                    進階檢視
+                  </Link>
+                </Button>
+              </CardAction>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {disposalRows.length === 0 ? (
+                <div className="rounded-3xl border border-dashed border-border/60 bg-background/60 px-6 py-10 text-center text-sm text-muted-foreground">
+                  {startDate || endDate ? "目前日期區間內找不到減損紀錄。" : "這個藥材目前還沒有減損紀錄。"}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>減損時間</TableHead>
+                        <TableHead>原因</TableHead>
+                        <TableHead>減損數量</TableHead>
+                        <TableHead>成本快照</TableHead>
+                        <TableHead>估計損失</TableHead>
+                        <TableHead>備註</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedDisposalRows.map((row) => {
+                        const lineAmount =
+                          toNumberValue(row.quantity) * toNumberValue(row.unitCostSnapshot)
+
+                        return (
+                          <TableRow key={row.id}>
+                            <TableCell>
+                              <div className="font-medium text-foreground">{formatDateTime(row.occurredAt)}</div>
+                              <div className="text-xs text-muted-foreground">{row.id.slice(0, 8).toUpperCase()}</div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={getInventoryDisposalReasonBadgeVariant(row.reason)}>
+                                {inventoryDisposalReasonLabels[row.reason]}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {formatQuantity(row.quantity)} {product.unit}
+                            </TableCell>
+                            <TableCell>{formatCurrency(row.unitCostSnapshot)}</TableCell>
+                            <TableCell>{formatCurrency(lineAmount)}</TableCell>
+                            <TableCell>{row.note || "-"}</TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+
+                  <div className="flex flex-col gap-3 border-t border-border/60 pt-4 md:flex-row md:items-center md:justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      顯示第 {disposalPageStart} 至 {disposalPageEnd} 筆，共 {disposalRows.length} 筆。
+                    </p>
+
+                    {disposalTotalPages > 1 ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {currentDisposalPage > 1 ? (
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={buildDisposalPageHref(currentDisposalPage - 1)}>上一頁</Link>
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="outline" disabled>
+                            上一頁
+                          </Button>
+                        )}
+
+                        {disposalPaginationItems.map((item, index) => {
+                          if (item === "ellipsis") {
+                            return (
+                              <span key={`disposal-ellipsis-${index}`} className="px-1 text-sm text-muted-foreground">
+                                …
+                              </span>
+                            )
+                          }
+
+                          if (item === currentDisposalPage) {
+                            return (
+                              <Button key={item} size="sm" variant="secondary" disabled aria-current="page">
+                                {item}
+                              </Button>
+                            )
+                          }
+
+                          return (
+                            <Button key={item} asChild size="sm" variant="outline">
+                              <Link href={buildDisposalPageHref(item)}>{item}</Link>
+                            </Button>
+                          )
+                        })}
+
+                        {currentDisposalPage < disposalTotalPages ? (
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={buildDisposalPageHref(currentDisposalPage + 1)}>下一頁</Link>
                           </Button>
                         ) : (
                           <Button size="sm" variant="outline" disabled>
