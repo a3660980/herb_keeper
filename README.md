@@ -127,6 +127,63 @@ pnpm format
 
 GitHub Actions CI 目前會在 `master`、`staging` 與所有 Pull Request 上自動執行 `pnpm lint`、`pnpm test:unit` 與 Playwright E2E。
 
+### GitHub Actions 自動備份到 Google Drive
+
+repo 內已提供 [`.github/workflows/supabase-backup-google-drive.yml`](.github/workflows/supabase-backup-google-drive.yml) 作為免費版自動備份流程。它會每天匯出 Supabase `public` schema 的 data-only dump，上傳到 Google Drive，並另外保留一份 7 天的 GitHub artifact。
+
+這支 workflow 預設保留最近 30 天的 Google Drive 備份；若要調整，可直接修改 workflow 內的 `BACKUP_RETENTION_DAYS`。
+
+#### 需要的 GitHub repository secrets
+
+- `SUPABASE_DB_URL`
+- `GDRIVE_SERVICE_ACCOUNT_JSON`
+- `GDRIVE_FOLDER_ID`
+
+`SUPABASE_DB_URL` 請使用 Supabase Dashboard 提供的 PostgreSQL connection string，建議選 direct connection 或 session mode，並保留 `sslmode=require`。
+
+`GDRIVE_SERVICE_ACCOUNT_JSON` 請填入 Google service account 的完整 JSON 金鑰內容。
+
+`GDRIVE_FOLDER_ID` 請填入你要存放備份的 Google Drive 資料夾 ID。
+
+#### Google Drive 設定步驟
+
+1. 到 Google Cloud 建立一個專用 project。
+2. 啟用 Google Drive API。
+3. 建立一個 service account。
+4. 建立 JSON key，將整份內容存成 GitHub secret `GDRIVE_SERVICE_ACCOUNT_JSON`。
+5. 在 Google Drive 建立一個備份專用資料夾。
+6. 把該資料夾分享給 service account 的 email。
+7. 從資料夾網址取出 folder ID，存成 GitHub secret `GDRIVE_FOLDER_ID`。
+
+#### workflow 目前的備份內容
+
+- 使用 `pg_dump`
+- 匯出格式為 custom dump
+- 只備份 `public` schema 的資料
+- 不包含 owner / privileges
+
+這個策略適合目前 repo 的 migration-first 做法：schema 與 RPC 仍以 `supabase/migrations/` 為主，資料備份則專注在營運資料本身。
+
+#### 還原範例
+
+先套用 migration 重建 schema，再用備份檔還原資料：
+
+```bash
+pg_restore \
+	--dbname="$TARGET_DB_URL" \
+	--data-only \
+	--no-owner \
+	--no-privileges \
+	--disable-triggers \
+	supabase-public-data-YYYYMMDDTHHMMSSZ.dump
+```
+
+如果要先驗證檔案完整性，可對照同名的 `.sha256` 檔：
+
+```bash
+shasum -a 256 -c supabase-public-data-YYYYMMDDTHHMMSSZ.dump.sha256
+```
+
 ### Unit tests
 
 `Vitest` 目前覆蓋 `lib/` 下的 formatter、URL helper、Supabase env helper，以及 customers / products / orders / sales 的表單與 payload helper。
