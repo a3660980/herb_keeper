@@ -63,7 +63,11 @@ test("operator can complete the core customer, product, order, shipment, and sal
       await page.getByLabel("備註").fill("Playwright 部分出貨驗證")
       await page.getByRole("button", { name: "建立出貨批次" }).click()
 
-      await expect(page.getByText("已建立出貨批次，庫存與訂單狀態已同步更新。")).toBeVisible()
+      const shipmentConfirmDialog = page.getByRole("dialog", { name: "確認本次出貨" })
+      await expect(shipmentConfirmDialog).toBeVisible()
+      await shipmentConfirmDialog.getByRole("button", { name: "確認出貨" }).click()
+
+      await expect(page.getByText("出貨完成，庫存與訂單狀態已同步更新。")).toBeVisible()
       await expect(page.getByText("部分出貨").first()).toBeVisible()
 
       await page.goto("/sales/new")

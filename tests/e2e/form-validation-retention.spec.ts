@@ -52,13 +52,19 @@ test("order, shipment, and sale forms retain business selections after validatio
       await page.getByRole("button", { name: "建立訂單" }).click()
 
       await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+\?status=/)
+      const shipmentLine = page.getByTestId("shipment-line").first()
+      await shipmentLine.getByLabel("黃耆 本次出貨數量").fill("1")
+      await page.locator("#shipmentDate").fill("")
       await page.getByRole("button", { name: "建立出貨批次" }).click()
 
+      const shipmentConfirmDialog = page.getByRole("dialog", { name: "確認本次出貨" })
+      await expect(shipmentConfirmDialog).toBeVisible()
+      await shipmentConfirmDialog.getByRole("button", { name: "確認出貨" }).click()
+
       await expect(page.getByText("請修正出貨欄位後再送出。")).toBeVisible()
-      await expect(page.getByText("至少輸入一筆本次出貨數量。")).toBeVisible()
-      await expect(page.locator("#shipmentDate")).toHaveValue(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/)
-      const shipmentLine = page.getByTestId("shipment-line").first()
-      await expect(shipmentLine.getByLabel("黃耆 本次出貨數量")).toHaveValue("0")
+      await expect(page.getByText("請選擇出貨時間")).toBeVisible()
+      await expect(page.locator("#shipmentDate")).toHaveValue("")
+      await expect(shipmentLine.getByLabel("黃耆 本次出貨數量")).toHaveValue("1")
 
       await page.goto("/sales/new")
       await selectSearchableOption(page, {
