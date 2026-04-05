@@ -17,6 +17,7 @@ import {
   inventoryDisposalReasonOptions,
   type InventoryDisposalFormState,
   type InventoryDisposalProductOption,
+  type InventoryDisposalReason,
 } from "@/lib/features/inventory-disposals"
 import { cn } from "@/lib/utils"
 
@@ -206,10 +207,15 @@ export function InventoryDisposalForm({
             className={selectClassName}
             onChange={(event) => {
               const nextReason = event.target.value
+              const resolvedReason = inventoryDisposalReasonOptions.includes(
+                nextReason as InventoryDisposalReason
+              )
+                ? (nextReason as InventoryDisposalReason)
+                : ""
 
               setValues((current) => ({
                 ...current,
-                reason: nextReason,
+                reason: resolvedReason,
               }))
             }}
           >
@@ -267,7 +273,7 @@ export function InventoryDisposalForm({
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
         <p className="text-sm text-muted-foreground">減損建立後會保留歷史紀錄，並立即反映在庫存總覽與藥材詳情。</p>
-        <SubmitButton pendingText={pendingLabel}>{submitLabel}</SubmitButton>
+        <SubmitButton pendingLabel={pendingLabel}>{submitLabel}</SubmitButton>
       </div>
     </form>
   )
