@@ -2,6 +2,7 @@ import Link from "next/link"
 
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
+import { QueryPagination } from "@/components/app/query-pagination"
 import { SubmitButton } from "@/components/app/submit-button"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,10 +20,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { paginateItems, readPageParam } from "@/lib/pagination"
 import { type SupplierRecord } from "@/lib/features/suppliers"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
-import { getSingleSearchParam } from "@/lib/url"
+import { getSingleSearchParam, withQueryString } from "@/lib/url"
 
 import { deleteSupplierAction } from "./actions"
 
@@ -30,9 +32,12 @@ type SuppliersPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
+const PAGE_SIZE = 20
+
 export default async function SuppliersPage({ searchParams }: SuppliersPageProps) {
   const params = await searchParams
   const query = getSingleSearchParam(params.q)?.trim() ?? ""
+  const requestedPage = readPageParam(params.page)
   const supabaseEnvReady = hasSupabaseEnv()
 
   let suppliers: SupplierRecord[] = []
@@ -66,6 +71,13 @@ export default async function SuppliersPage({ searchParams }: SuppliersPageProps
           : "無法讀取供應商資料，請稍後再試。"
     }
   }
+
+  const pagination = paginateItems(suppliers, requestedPage, PAGE_SIZE)
+  const buildPageHref = (page: number) =>
+    withQueryString("/suppliers", {
+      q: query || undefined,
+      page: page > 1 ? String(page) : undefined,
+    })
 
   return (
     <div className="space-y-6">
@@ -119,45 +131,58 @@ export default async function SuppliersPage({ searchParams }: SuppliersPageProps
               {query ? "找不到符合條件的供應商。" : "目前還沒有供應商資料。"}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>供應商</TableHead>
-                  <TableHead>電話</TableHead>
-                  <TableHead>地址</TableHead>
-                  <TableHead>備註</TableHead>
-                  <TableHead>操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {suppliers.map((supplier) => (
-                  <TableRow key={supplier.id}>
-                    <TableCell className="font-medium text-foreground">{supplier.name}</TableCell>
-                    <TableCell>{supplier.phone || "-"}</TableCell>
-                    <TableCell>{supplier.address || "-"}</TableCell>
-                    <TableCell>{supplier.note || "-"}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
-                        <Button asChild size="sm" variant="outline">
-                          <Link href={`/suppliers/${supplier.id}/edit`}>編輯</Link>
-                        </Button>
-                        <form action={deleteSupplierAction}>
-                          <input type="hidden" name="supplierId" value={supplier.id} />
-                          <input type="hidden" name="supplierName" value={supplier.name} />
-                          <SubmitButton
-                            size="sm"
-                            variant="destructive"
-                            pendingLabel="刪除中..."
-                          >
-                            刪除
-                          </SubmitButton>
-                        </form>
-                      </div>
-                    </TableCell>
+            <div className="space-y-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>供應商</TableHead>
+                    <TableHead>電話</TableHead>
+                    <TableHead>地址</TableHead>
+                    <TableHead>備註</TableHead>
+                    <TableHead>操作</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {pagination.items.map((supplier) => (
+                    <TableRow key={supplier.id}>
+                      <TableCell className="font-medium text-foreground">{supplier.name}</TableCell>
+                      <TableCell>{supplier.phone || "-"}</TableCell>
+                      <TableCell>{supplier.address || "-"}</TableCell>
+                      <TableCell>{supplier.note || "-"}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-2">
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`/suppliers/${supplier.id}/edit`}>編輯</Link>
+                          </Button>
+                          <form action={deleteSupplierAction}>
+                            <input type="hidden" name="supplierId" value={supplier.id} />
+                            <input type="hidden" name="supplierName" value={supplier.name} />
+                            <SubmitButton
+                              size="sm"
+                              variant="destructive"
+                              pendingLabel="刪除中..."
+                            >
+                              刪除
+                            </SubmitButton>
+                          </form>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              <QueryPagination
+                buildPageHref={buildPageHref}
+                currentPage={pagination.currentPage}
+                pageEnd={pagination.pageEnd}
+                pageSize={PAGE_SIZE}
+                pageStart={pagination.pageStart}
+                paginationItems={pagination.paginationItems}
+                totalItems={suppliers.length}
+                totalPages={pagination.totalPages}
+              />
+            </div>
           )}
         </CardContent>
       </Card>

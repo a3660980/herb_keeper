@@ -1,3 +1,4 @@
+import { QueryPagination } from "@/components/app/query-pagination"
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
 import { Badge } from "@/components/ui/badge"
@@ -19,9 +20,10 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { formatCurrency, formatDateTime, formatQuantity } from "@/lib/format"
+import { paginateItems, readPageParam } from "@/lib/pagination"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
-import { getSingleSearchParam } from "@/lib/url"
+import { getSingleSearchParam, withQueryString } from "@/lib/url"
 
 type ReportsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
@@ -67,6 +69,8 @@ type TransactionRow = {
   profit_total: number | string
 }
 
+const PAGE_SIZE = 20
+
 function getTransactionLabel(type: TransactionRow["transaction_type"]) {
   return type === "shipment" ? "訂單出貨" : "現場銷貨"
 }
@@ -79,6 +83,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const params = await searchParams
   const query = getSingleSearchParam(params.q)?.trim() ?? ""
   const selectedType = (getSingleSearchParam(params.type)?.trim() ?? "") as TransactionType
+  const requestedPage = readPageParam(params.page)
   const supabaseEnvReady = hasSupabaseEnv()
 
   let dailyRows: DailySummaryRow[] = []
@@ -97,7 +102,6 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           "transaction_type, transaction_id, transaction_date, customer_name, product_name, quantity, final_unit_price, revenue, cost_total, profit_total"
         )
         .order("transaction_date", { ascending: false })
-        .limit(60)
 
       if (selectedType === "shipment" || selectedType === "direct_sale") {
         transactionsRequest = transactionsRequest.eq("transaction_type", selectedType)
@@ -152,6 +156,20 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
   const latestDay = dailyRows[0]
   const latestMonth = monthlyRows[0]
+  const transactionPagination = paginateItems(
+    transactionRows,
+    requestedPage,
+    PAGE_SIZE
+  )
+  const buildPageHref = (page: number) => {
+    const href = withQueryString("/reports", {
+      q: query || undefined,
+      type: selectedType || undefined,
+      page: page > 1 ? String(page) : undefined,
+    })
+
+    return `${href}#recent-transactions`
+  }
   return (
     <div className="space-y-6">
       <PageIntro
@@ -308,42 +326,55 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
               {query || selectedType ? "找不到符合條件的交易。" : "目前沒有交易明細資料。"}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>時間</TableHead>
-                  <TableHead>類型</TableHead>
-                  <TableHead>客戶</TableHead>
-                  <TableHead>藥材</TableHead>
-                  <TableHead>數量</TableHead>
-                  <TableHead>成交單價</TableHead>
-                  <TableHead>營收</TableHead>
-                  <TableHead>成本</TableHead>
-                  <TableHead>毛利</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transactionRows.map((row) => (
-                  <TableRow key={`${row.transaction_type}-${row.transaction_id}-${row.product_name}`}>
-                    <TableCell>{formatDateTime(row.transaction_date)}</TableCell>
-                    <TableCell>
-                      <Badge variant={getTransactionBadgeVariant(row.transaction_type)}>
-                        {getTransactionLabel(row.transaction_type)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{row.customer_name}</TableCell>
-                    <TableCell className="font-medium text-foreground">
-                      {row.product_name}
-                    </TableCell>
-                    <TableCell>{formatQuantity(row.quantity)}</TableCell>
-                    <TableCell>{formatCurrency(row.final_unit_price)}</TableCell>
-                    <TableCell>{formatCurrency(row.revenue)}</TableCell>
-                    <TableCell>{formatCurrency(row.cost_total)}</TableCell>
-                    <TableCell>{formatCurrency(row.profit_total)}</TableCell>
+            <div className="space-y-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>時間</TableHead>
+                    <TableHead>類型</TableHead>
+                    <TableHead>客戶</TableHead>
+                    <TableHead>藥材</TableHead>
+                    <TableHead>數量</TableHead>
+                    <TableHead>成交單價</TableHead>
+                    <TableHead>營收</TableHead>
+                    <TableHead>成本</TableHead>
+                    <TableHead>毛利</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {transactionPagination.items.map((row) => (
+                    <TableRow key={`${row.transaction_type}-${row.transaction_id}-${row.product_name}`}>
+                      <TableCell>{formatDateTime(row.transaction_date)}</TableCell>
+                      <TableCell>
+                        <Badge variant={getTransactionBadgeVariant(row.transaction_type)}>
+                          {getTransactionLabel(row.transaction_type)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{row.customer_name}</TableCell>
+                      <TableCell className="font-medium text-foreground">
+                        {row.product_name}
+                      </TableCell>
+                      <TableCell>{formatQuantity(row.quantity)}</TableCell>
+                      <TableCell>{formatCurrency(row.final_unit_price)}</TableCell>
+                      <TableCell>{formatCurrency(row.revenue)}</TableCell>
+                      <TableCell>{formatCurrency(row.cost_total)}</TableCell>
+                      <TableCell>{formatCurrency(row.profit_total)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              <QueryPagination
+                buildPageHref={buildPageHref}
+                currentPage={transactionPagination.currentPage}
+                pageEnd={transactionPagination.pageEnd}
+                pageSize={PAGE_SIZE}
+                pageStart={transactionPagination.pageStart}
+                paginationItems={transactionPagination.paginationItems}
+                totalItems={transactionRows.length}
+                totalPages={transactionPagination.totalPages}
+              />
+            </div>
           )}
         </CardContent>
       </Card>

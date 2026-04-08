@@ -2,6 +2,7 @@ import Link from "next/link"
 
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
+import { QueryPagination } from "@/components/app/query-pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -27,6 +28,7 @@ import {
   inventoryDisposalReasonOptions,
   type InventoryDisposalReason,
 } from "@/lib/features/inventory-disposals"
+import { getPaginationState, readPageParam } from "@/lib/pagination"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
 import { getSingleSearchParam, withQueryString } from "@/lib/url"
@@ -134,29 +136,6 @@ function isInventoryDisposalWithinDateRange(value: string, startDate: string, en
   }
 
   return true
-}
-
-function readPageParam(value: string | string[] | undefined) {
-  const normalizedValue = getSingleSearchParam(value)?.trim() ?? ""
-  const page = Number.parseInt(normalizedValue, 10)
-
-  return Number.isFinite(page) && page > 0 ? page : 1
-}
-
-function getPaginationItems(totalPages: number, currentPage: number) {
-  if (totalPages <= 7) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1)
-  }
-
-  if (currentPage <= 3) {
-    return [1, 2, 3, 4, "ellipsis", totalPages] as const
-  }
-
-  if (currentPage >= totalPages - 2) {
-    return [1, "ellipsis", totalPages - 3, totalPages - 2, totalPages - 1, totalPages] as const
-  }
-
-  return [1, "ellipsis", currentPage - 1, currentPage, currentPage + 1, "ellipsis", totalPages] as const
 }
 
 function readReasonParam(value: string | string[] | undefined) {
@@ -275,13 +254,9 @@ export default async function InventoryDisposalsPage({
     })
   }
 
-  const totalPages = Math.max(1, Math.ceil(disposalRows.length / PAGE_SIZE))
-  const currentPage = disposalRows.length === 0 ? 1 : Math.min(requestedPage, totalPages)
-  const pageStartIndex = (currentPage - 1) * PAGE_SIZE
+  const pagination = getPaginationState(disposalRows.length, requestedPage, PAGE_SIZE)
+  const pageStartIndex = pagination.pageStartIndex
   const paginatedRows = disposalRows.slice(pageStartIndex, pageStartIndex + PAGE_SIZE)
-  const pageStart = disposalRows.length === 0 ? 0 : pageStartIndex + 1
-  const pageEnd = disposalRows.length === 0 ? 0 : Math.min(pageStartIndex + PAGE_SIZE, disposalRows.length)
-  const paginationItems = disposalRows.length === 0 ? [] : getPaginationItems(totalPages, currentPage)
   const totalDisposalQuantity = disposalRows.reduce((sum, row) => {
     return sum + toNumberValue(row.quantity)
   }, 0)
@@ -452,7 +427,7 @@ export default async function InventoryDisposalsPage({
           <CardDescription>
             {disposalRows.length === 0
               ? "目前沒有符合條件的減損紀錄。"
-              : `顯示第 ${pageStart} - ${pageEnd} 筆，共 ${disposalRows.length} 筆減損紀錄。`}
+              : `顯示第 ${pagination.pageStart} - ${pagination.pageEnd} 筆，共 ${disposalRows.length} 筆減損紀錄。`}
           </CardDescription>
           <CardAction>
             <Button
@@ -536,42 +511,16 @@ export default async function InventoryDisposalsPage({
                 </TableBody>
               </Table>
 
-              {paginationItems.length > 0 ? (
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4 text-sm text-muted-foreground">
-                  <div>
-                    第 {pageStart} - {pageEnd} 筆，共 {disposalRows.length} 筆
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button asChild size="sm" variant="outline" disabled={currentPage <= 1}>
-                      <Link href={buildPageHref(Math.max(1, currentPage - 1))}>上一頁</Link>
-                    </Button>
-                    {paginationItems.map((item, index) =>
-                      item === "ellipsis" ? (
-                        <span key={`ellipsis-${index}`} className="px-1 text-muted-foreground">
-                          ...
-                        </span>
-                      ) : (
-                        <Button
-                          key={item}
-                          asChild
-                          size="sm"
-                          variant={item === currentPage ? "default" : "outline"}
-                        >
-                          <Link href={buildPageHref(item)}>{item}</Link>
-                        </Button>
-                      )
-                    )}
-                    <Button
-                      asChild
-                      size="sm"
-                      variant="outline"
-                      disabled={currentPage >= totalPages}
-                    >
-                      <Link href={buildPageHref(Math.min(totalPages, currentPage + 1))}>下一頁</Link>
-                    </Button>
-                  </div>
-                </div>
-              ) : null}
+              <QueryPagination
+                buildPageHref={buildPageHref}
+                currentPage={pagination.currentPage}
+                pageEnd={pagination.pageEnd}
+                pageSize={PAGE_SIZE}
+                pageStart={pagination.pageStart}
+                paginationItems={pagination.paginationItems}
+                totalItems={disposalRows.length}
+                totalPages={pagination.totalPages}
+              />
             </>
           )}
         </CardContent>

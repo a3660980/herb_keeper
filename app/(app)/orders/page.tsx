@@ -2,6 +2,7 @@ import Link from "next/link"
 
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
+import { QueryPagination } from "@/components/app/query-pagination"
 import { TradeModuleSwitch } from "@/components/app/trade-module-switch"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -33,9 +34,10 @@ import {
   orderStatusOptions,
   type OrderStatus,
 } from "@/lib/features/orders"
+import { paginateItems, readPageParam } from "@/lib/pagination"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
-import { getSingleSearchParam } from "@/lib/url"
+import { getSingleSearchParam, withQueryString } from "@/lib/url"
 
 type OrdersPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
@@ -61,6 +63,8 @@ type OrderItemRow = {
   final_unit_price: number | string
 }
 
+const PAGE_SIZE = 20
+
 function getStatusVariant(status: OrderStatus) {
   if (status === "completed") {
     return "secondary"
@@ -81,6 +85,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   const params = await searchParams
   const query = getSingleSearchParam(params.q)?.trim() ?? ""
   const selectedStatus = getSingleSearchParam(params.status)?.trim() ?? ""
+  const requestedPage = readPageParam(params.page)
   const supabaseEnvReady = hasSupabaseEnv()
 
   let orders: TradeSummary[] = []
@@ -160,6 +165,13 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   const partialCount = orders.filter((order) => order.status === "partial").length
   const completedCount = orders.filter((order) => order.status === "completed").length
   const canceledCount = orders.filter((order) => order.status === "canceled").length
+  const pagination = paginateItems(orders, requestedPage, PAGE_SIZE)
+  const buildPageHref = (page: number) =>
+    withQueryString("/orders", {
+      q: query || undefined,
+      status: selectedStatus || undefined,
+      page: page > 1 ? String(page) : undefined,
+    })
 
   return (
     <div className="space-y-6">
@@ -261,66 +273,79 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
                 : "目前還沒有訂單資料，先建立第一張訂單吧。"}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>訂單</TableHead>
-                  <TableHead>客戶</TableHead>
-                  <TableHead>狀態</TableHead>
-                  <TableHead>明細數</TableHead>
-                  <TableHead>履約進度</TableHead>
-                  <TableHead>訂單金額</TableHead>
-                  <TableHead>操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell>
-                      <div className="font-medium text-foreground">
-                        {order.id.slice(0, 8).toUpperCase()}
-                      </div>
-                      <div className="text-xs text-muted-foreground">{formatDateTime(order.occurredAt)}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium text-foreground">
-                        {order.customerName}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {order.note || "無備註"}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusVariant(order.status)}>
-                        {orderStatusLabels[order.status]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{order.itemCount}</TableCell>
-                    <TableCell>
-                      {formatQuantity(order.fulfilledQuantity)} / {formatQuantity(order.totalQuantity)}
-                    </TableCell>
-                    <TableCell>{formatCurrency(order.totalAmount)}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
-                        <Button asChild size="sm" variant="outline">
-                          <Link href={`/orders/${order.id}`}>查看</Link>
-                        </Button>
-                        {order.status === "pending" ? (
-                          <Button asChild size="sm" variant="secondary">
-                            <Link href={`/orders/${order.id}/edit`}>修改</Link>
-                          </Button>
-                        ) : null}
-                        {order.status !== "canceled" && order.remainingQuantity > 0 ? (
-                          <Button asChild size="sm">
-                            <Link href={`/orders/${order.id}#shipment-form`}>出貨</Link>
-                          </Button>
-                        ) : null}
-                      </div>
-                    </TableCell>
+            <div className="space-y-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>訂單</TableHead>
+                    <TableHead>客戶</TableHead>
+                    <TableHead>狀態</TableHead>
+                    <TableHead>明細數</TableHead>
+                    <TableHead>履約進度</TableHead>
+                    <TableHead>訂單金額</TableHead>
+                    <TableHead>操作</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {pagination.items.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell>
+                        <div className="font-medium text-foreground">
+                          {order.id.slice(0, 8).toUpperCase()}
+                        </div>
+                        <div className="text-xs text-muted-foreground">{formatDateTime(order.occurredAt)}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium text-foreground">
+                          {order.customerName}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {order.note || "無備註"}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusVariant(order.status)}>
+                          {orderStatusLabels[order.status]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{order.itemCount}</TableCell>
+                      <TableCell>
+                        {formatQuantity(order.fulfilledQuantity)} / {formatQuantity(order.totalQuantity)}
+                      </TableCell>
+                      <TableCell>{formatCurrency(order.totalAmount)}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-2">
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`/orders/${order.id}`}>查看</Link>
+                          </Button>
+                          {order.status === "pending" ? (
+                            <Button asChild size="sm" variant="secondary">
+                              <Link href={`/orders/${order.id}/edit`}>修改</Link>
+                            </Button>
+                          ) : null}
+                          {order.status !== "canceled" && order.remainingQuantity > 0 ? (
+                            <Button asChild size="sm">
+                              <Link href={`/orders/${order.id}#shipment-form`}>出貨</Link>
+                            </Button>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              <QueryPagination
+                buildPageHref={buildPageHref}
+                currentPage={pagination.currentPage}
+                pageEnd={pagination.pageEnd}
+                pageSize={PAGE_SIZE}
+                pageStart={pagination.pageStart}
+                paginationItems={pagination.paginationItems}
+                totalItems={orders.length}
+                totalPages={pagination.totalPages}
+              />
+            </div>
           )}
         </CardContent>
       </Card>

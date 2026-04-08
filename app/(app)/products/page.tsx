@@ -2,6 +2,7 @@ import Link from "next/link"
 
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
+import { QueryPagination } from "@/components/app/query-pagination"
 import { SubmitButton } from "@/components/app/submit-button"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,15 +22,18 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { type ProductListItem } from "@/lib/features/products"
+import { paginateItems, readPageParam } from "@/lib/pagination"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
-import { getSingleSearchParam } from "@/lib/url"
+import { getSingleSearchParam, withQueryString } from "@/lib/url"
 
 import { deleteProductAction } from "./actions"
 
 type ProductsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }
+
+const PAGE_SIZE = 20
 
 const currencyFormatter = new Intl.NumberFormat("zh-TW", {
   style: "currency",
@@ -50,6 +54,7 @@ function toNumber(value: number | string | null | undefined) {
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const params = await searchParams
   const query = getSingleSearchParam(params.q)?.trim() ?? ""
+  const requestedPage = readPageParam(params.page)
   const supabaseEnvReady = hasSupabaseEnv()
 
   let products: ProductListItem[] = []
@@ -91,6 +96,12 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       toNumber(product.ledger_stock_quantity)
     )
   }).length
+  const pagination = paginateItems(products, requestedPage, PAGE_SIZE)
+  const buildPageHref = (page: number) =>
+    withQueryString("/products", {
+      q: query || undefined,
+      page: page > 1 ? String(page) : undefined,
+    })
 
   return (
     <div className="space-y-6">
@@ -172,99 +183,112 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
               </p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>藥材</TableHead>
-                  <TableHead>基準售價</TableHead>
-                  <TableHead>平均成本</TableHead>
-                  <TableHead>系統庫存</TableHead>
-                  <TableHead>帳面庫存</TableHead>
-                  <TableHead>狀態</TableHead>
-                  <TableHead>操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {products.map((product) => {
-                  const cachedQuantity = toNumber(product.cached_stock_quantity)
-                  const ledgerQuantity = toNumber(product.ledger_stock_quantity)
-                  const hasMismatch = cachedQuantity !== ledgerQuantity
+            <div className="space-y-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>藥材</TableHead>
+                    <TableHead>基準售價</TableHead>
+                    <TableHead>平均成本</TableHead>
+                    <TableHead>系統庫存</TableHead>
+                    <TableHead>帳面庫存</TableHead>
+                    <TableHead>狀態</TableHead>
+                    <TableHead>操作</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pagination.items.map((product) => {
+                    const cachedQuantity = toNumber(product.cached_stock_quantity)
+                    const ledgerQuantity = toNumber(product.ledger_stock_quantity)
+                    const hasMismatch = cachedQuantity !== ledgerQuantity
 
-                  return (
-                    <TableRow key={product.product_id}>
-                      <TableCell>
-                        <Link
-                          href={`/products/${product.product_id}`}
-                          className="font-medium text-foreground transition hover:text-primary hover:underline"
-                        >
-                          {product.product_name}
-                        </Link>
-                        <div className="text-xs text-muted-foreground">
-                          單位：{product.unit}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {currencyFormatter.format(toNumber(product.base_price))}
-                      </TableCell>
-                      <TableCell>
-                        {currencyFormatter.format(toNumber(product.avg_unit_cost))}
-                      </TableCell>
-                      <TableCell>
-                        {quantityFormatter.format(cachedQuantity)} {product.unit}
-                      </TableCell>
-                      <TableCell>
-                        {quantityFormatter.format(ledgerQuantity)} {product.unit}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-2">
-                          {product.is_low_stock ? (
-                            <Badge variant="destructive">低庫存</Badge>
-                          ) : (
-                            <Badge variant="secondary">正常</Badge>
-                          )}
-                          {hasMismatch ? (
-                            <Badge variant="outline">帳存差異</Badge>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-2">
-                          <Button asChild size="sm" variant="secondary">
-                            <Link href={`/products/inbounds/new?productId=${product.product_id}`}>
-                              進貨
-                            </Link>
-                          </Button>
-                          <Button asChild size="sm" variant="outline">
-                            <Link href={`/products/${product.product_id}/edit`}>
-                              編輯
-                            </Link>
-                          </Button>
-                          <form action={deleteProductAction}>
-                            <input
-                              type="hidden"
-                              name="productId"
-                              value={product.product_id}
-                            />
-                            <input
-                              type="hidden"
-                              name="productName"
-                              value={product.product_name}
-                            />
-                            <SubmitButton
-                              size="sm"
-                              variant="destructive"
-                              pendingLabel="刪除中..."
-                            >
-                              刪除
-                            </SubmitButton>
-                          </form>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
+                    return (
+                      <TableRow key={product.product_id}>
+                        <TableCell>
+                          <Link
+                            href={`/products/${product.product_id}`}
+                            className="font-medium text-foreground transition hover:text-primary hover:underline"
+                          >
+                            {product.product_name}
+                          </Link>
+                          <div className="text-xs text-muted-foreground">
+                            單位：{product.unit}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {currencyFormatter.format(toNumber(product.base_price))}
+                        </TableCell>
+                        <TableCell>
+                          {currencyFormatter.format(toNumber(product.avg_unit_cost))}
+                        </TableCell>
+                        <TableCell>
+                          {quantityFormatter.format(cachedQuantity)} {product.unit}
+                        </TableCell>
+                        <TableCell>
+                          {quantityFormatter.format(ledgerQuantity)} {product.unit}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-2">
+                            {product.is_low_stock ? (
+                              <Badge variant="destructive">低庫存</Badge>
+                            ) : (
+                              <Badge variant="secondary">正常</Badge>
+                            )}
+                            {hasMismatch ? (
+                              <Badge variant="outline">帳存差異</Badge>
+                            ) : null}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-2">
+                            <Button asChild size="sm" variant="secondary">
+                              <Link href={`/products/inbounds/new?productId=${product.product_id}`}>
+                                進貨
+                              </Link>
+                            </Button>
+                            <Button asChild size="sm" variant="outline">
+                              <Link href={`/products/${product.product_id}/edit`}>
+                                編輯
+                              </Link>
+                            </Button>
+                            <form action={deleteProductAction}>
+                              <input
+                                type="hidden"
+                                name="productId"
+                                value={product.product_id}
+                              />
+                              <input
+                                type="hidden"
+                                name="productName"
+                                value={product.product_name}
+                              />
+                              <SubmitButton
+                                size="sm"
+                                variant="destructive"
+                                pendingLabel="刪除中..."
+                              >
+                                刪除
+                              </SubmitButton>
+                            </form>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+
+              <QueryPagination
+                buildPageHref={buildPageHref}
+                currentPage={pagination.currentPage}
+                pageEnd={pagination.pageEnd}
+                pageSize={PAGE_SIZE}
+                pageStart={pagination.pageStart}
+                paginationItems={pagination.paginationItems}
+                totalItems={products.length}
+                totalPages={pagination.totalPages}
+              />
+            </div>
           )}
         </CardContent>
       </Card>

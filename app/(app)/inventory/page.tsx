@@ -2,6 +2,7 @@ import Link from "next/link"
 
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
+import { QueryPagination } from "@/components/app/query-pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -21,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { formatCurrency, formatQuantity, toNumberValue } from "@/lib/format"
+import { paginateItems, readPageParam } from "@/lib/pagination"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
 import { getSingleSearchParam, withQueryString } from "@/lib/url"
@@ -43,10 +45,13 @@ type InventoryRow = {
   is_low_stock: boolean
 }
 
+const PAGE_SIZE = 20
+
 export default async function InventoryPage({ searchParams }: InventoryPageProps) {
   const params = await searchParams
   const query = getSingleSearchParam(params.q)?.trim() ?? ""
   const selectedFilter = (getSingleSearchParam(params.filter)?.trim() ?? "") as InventoryFilter
+  const requestedPage = readPageParam(params.page)
   const supabaseEnvReady = hasSupabaseEnv()
 
   let items: InventoryRow[] = []
@@ -106,6 +111,13 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
     (sum, item) => sum + toNumberValue(item.ledger_stock_quantity),
     0
   )
+  const pagination = paginateItems(items, requestedPage, PAGE_SIZE)
+  const buildPageHref = (page: number) =>
+    withQueryString("/inventory", {
+      q: query || undefined,
+      filter: selectedFilter || undefined,
+      page: page > 1 ? String(page) : undefined,
+    })
 
   return (
     <div className="space-y-6">
@@ -191,85 +203,98 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
               {query || selectedFilter ? "找不到符合條件的庫存資料。" : "目前沒有庫存資料。"}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>藥材</TableHead>
-                  <TableHead>基準售價</TableHead>
-                  <TableHead>平均成本</TableHead>
-                  <TableHead>低庫存門檻</TableHead>
-                  <TableHead>系統庫存</TableHead>
-                  <TableHead>帳面庫存</TableHead>
-                  <TableHead>差異</TableHead>
-                  <TableHead>狀態</TableHead>
-                  <TableHead>操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item) => {
-                  const cached = toNumberValue(item.cached_stock_quantity)
-                  const ledger = toNumberValue(item.ledger_stock_quantity)
-                  const delta = ledger - cached
-                  const hasMismatch = delta !== 0
+            <div className="space-y-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>藥材</TableHead>
+                    <TableHead>基準售價</TableHead>
+                    <TableHead>平均成本</TableHead>
+                    <TableHead>低庫存門檻</TableHead>
+                    <TableHead>系統庫存</TableHead>
+                    <TableHead>帳面庫存</TableHead>
+                    <TableHead>差異</TableHead>
+                    <TableHead>狀態</TableHead>
+                    <TableHead>操作</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pagination.items.map((item) => {
+                    const cached = toNumberValue(item.cached_stock_quantity)
+                    const ledger = toNumberValue(item.ledger_stock_quantity)
+                    const delta = ledger - cached
+                    const hasMismatch = delta !== 0
 
-                  return (
-                    <TableRow key={item.product_id}>
-                      <TableCell>
-                        <Link
-                          href={`/products/${item.product_id}`}
-                          className="font-medium text-foreground transition-colors hover:text-primary"
-                        >
-                          {item.product_name}
-                        </Link>
-                        <div className="text-xs text-muted-foreground">單位：{item.unit}</div>
-                      </TableCell>
-                      <TableCell>{formatCurrency(item.base_price)}</TableCell>
-                      <TableCell>{formatCurrency(item.avg_unit_cost)}</TableCell>
-                      <TableCell>
-                        {formatQuantity(item.low_stock_threshold)} {item.unit}
-                      </TableCell>
-                      <TableCell>
-                        {formatQuantity(cached)} {item.unit}
-                      </TableCell>
-                      <TableCell>
-                        {formatQuantity(ledger)} {item.unit}
-                      </TableCell>
-                      <TableCell>
-                        {delta > 0 ? "+" : ""}
-                        {formatQuantity(delta)} {item.unit}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-2">
-                          {item.is_low_stock ? (
-                            <Badge variant="destructive">低庫存</Badge>
+                    return (
+                      <TableRow key={item.product_id}>
+                        <TableCell>
+                          <Link
+                            href={`/products/${item.product_id}`}
+                            className="font-medium text-foreground transition-colors hover:text-primary"
+                          >
+                            {item.product_name}
+                          </Link>
+                          <div className="text-xs text-muted-foreground">單位：{item.unit}</div>
+                        </TableCell>
+                        <TableCell>{formatCurrency(item.base_price)}</TableCell>
+                        <TableCell>{formatCurrency(item.avg_unit_cost)}</TableCell>
+                        <TableCell>
+                          {formatQuantity(item.low_stock_threshold)} {item.unit}
+                        </TableCell>
+                        <TableCell>
+                          {formatQuantity(cached)} {item.unit}
+                        </TableCell>
+                        <TableCell>
+                          {formatQuantity(ledger)} {item.unit}
+                        </TableCell>
+                        <TableCell>
+                          {delta > 0 ? "+" : ""}
+                          {formatQuantity(delta)} {item.unit}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-2">
+                            {item.is_low_stock ? (
+                              <Badge variant="destructive">低庫存</Badge>
+                            ) : (
+                              <Badge variant="secondary">正常</Badge>
+                            )}
+                            {hasMismatch ? (
+                              <Badge variant="outline">帳存差異</Badge>
+                            ) : null}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {ledger > 0 ? (
+                            <Button asChild size="sm" variant="outline">
+                              <Link
+                                href={withQueryString("/inventory/disposals/new", {
+                                  productId: item.product_id,
+                                })}
+                              >
+                                減損
+                              </Link>
+                            </Button>
                           ) : (
-                            <Badge variant="secondary">正常</Badge>
+                            <span className="text-sm text-muted-foreground">無可減損庫存</span>
                           )}
-                          {hasMismatch ? (
-                            <Badge variant="outline">帳存差異</Badge>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {ledger > 0 ? (
-                          <Button asChild size="sm" variant="outline">
-                            <Link
-                              href={withQueryString("/inventory/disposals/new", {
-                                productId: item.product_id,
-                              })}
-                            >
-                              減損
-                            </Link>
-                          </Button>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">無可減損庫存</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+
+              <QueryPagination
+                buildPageHref={buildPageHref}
+                currentPage={pagination.currentPage}
+                pageEnd={pagination.pageEnd}
+                pageSize={PAGE_SIZE}
+                pageStart={pagination.pageStart}
+                paginationItems={pagination.paginationItems}
+                totalItems={items.length}
+                totalPages={pagination.totalPages}
+              />
+            </div>
           )}
         </CardContent>
       </Card>
