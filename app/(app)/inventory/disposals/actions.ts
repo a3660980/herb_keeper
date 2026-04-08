@@ -11,11 +11,15 @@ import {
   readInventoryDisposalFormSubmission,
   type InventoryDisposalFormState,
 } from "@/lib/features/inventory-disposals"
+import {
+  getUnexpectedServerActionErrorMessage,
+  normalizeServerActionErrorMessage,
+} from "@/lib/server-action-errors"
 import { createClient } from "@/lib/supabase/server"
 import { withQueryString } from "@/lib/url"
 
 function getUnexpectedErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "發生未預期錯誤，請稍後再試。"
+  return getUnexpectedServerActionErrorMessage(error)
 }
 
 function getInventoryDisposalActionErrorMessage(error: { code?: string; message: string }) {
@@ -47,7 +51,7 @@ function getInventoryDisposalActionErrorMessage(error: { code?: string; message:
     return "減損數量不可超過目前帳面庫存。"
   }
 
-  return error.message || "新增庫存減損失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "新增庫存減損失敗，請稍後再試。")
 }
 
 export async function createInventoryDisposalAction(

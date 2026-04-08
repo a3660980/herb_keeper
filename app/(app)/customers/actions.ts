@@ -13,6 +13,10 @@ import {
   type CustomerFormState,
   type QuickCreateCustomerFormState,
 } from "@/lib/features/customers"
+import {
+  getUnexpectedServerActionErrorMessage,
+  normalizeServerActionErrorMessage,
+} from "@/lib/server-action-errors"
 import { createClient } from "@/lib/supabase/server"
 import { withQueryString } from "@/lib/url"
 
@@ -25,11 +29,11 @@ function getCustomerErrorMessage(error: { code?: string; message: string }, name
     return `客戶「${name}」的欄位格式不符合資料表限制。`
   }
 
-  return error.message || "客戶資料寫入失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "客戶資料寫入失敗，請稍後再試。")
 }
 
 function getUnexpectedErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "發生未預期錯誤，請稍後再試。"
+  return getUnexpectedServerActionErrorMessage(error)
 }
 
 export async function createCustomerAction(
@@ -198,21 +202,23 @@ export async function deleteCustomerAction(formData: FormData) {
     )
   }
 
+  let errorMessage = ""
+
   try {
     const supabase = await createClient()
     const { error } = await supabase.from("customers").delete().eq("id", customerId)
 
     if (error) {
-      redirect(
-        withQueryString("/customers", {
-          error: getCustomerErrorMessage(error, customerName),
-        })
-      )
+      errorMessage = getCustomerErrorMessage(error, customerName)
     }
   } catch (error) {
+    errorMessage = getUnexpectedErrorMessage(error)
+  }
+
+  if (errorMessage) {
     redirect(
       withQueryString("/customers", {
-        error: getUnexpectedErrorMessage(error),
+        error: errorMessage,
       })
     )
   }

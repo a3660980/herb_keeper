@@ -13,11 +13,15 @@ import {
   readInboundFormSubmission,
   type InboundFormState,
 } from "@/lib/features/inbounds"
+import {
+  getUnexpectedServerActionErrorMessage,
+  normalizeServerActionErrorMessage,
+} from "@/lib/server-action-errors"
 import { createClient } from "@/lib/supabase/server"
 import { withQueryString } from "@/lib/url"
 
 function getUnexpectedErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "發生未預期錯誤，請稍後再試。"
+  return getUnexpectedServerActionErrorMessage(error)
 }
 
 function getInboundActionErrorMessage(error: { code?: string; message: string }) {
@@ -45,7 +49,7 @@ function getInboundActionErrorMessage(error: { code?: string; message: string })
     return "進貨單價不可小於 0。"
   }
 
-  return error.message || "新增進貨失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "新增進貨失敗，請稍後再試。")
 }
 
 export async function createInboundAction(

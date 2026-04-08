@@ -13,11 +13,15 @@ import {
   salePayloadToRpcItems,
   type SaleFormState,
 } from "@/lib/features/sales"
+import {
+  getUnexpectedServerActionErrorMessage,
+  normalizeServerActionErrorMessage,
+} from "@/lib/server-action-errors"
 import { createClient } from "@/lib/supabase/server"
 import { withQueryString } from "@/lib/url"
 
 function getUnexpectedErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "發生未預期錯誤，請稍後再試。"
+  return getUnexpectedServerActionErrorMessage(error)
 }
 
 function getDirectSaleErrorMessage(error: { code?: string; message: string }) {
@@ -45,7 +49,7 @@ function getDirectSaleErrorMessage(error: { code?: string; message: string }) {
     return "庫存不足，請重新整理頁面後再確認銷貨數量。"
   }
 
-  return error.message || "建立現場銷貨失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "建立現場銷貨失敗，請稍後再試。")
 }
 
 export async function createDirectSaleAction(

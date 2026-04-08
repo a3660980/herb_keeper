@@ -19,6 +19,10 @@ import {
   readProductUnitFormValues,
   type ProductUnitFormState,
 } from "@/lib/features/product-units"
+import {
+  getUnexpectedServerActionErrorMessage,
+  normalizeServerActionErrorMessage,
+} from "@/lib/server-action-errors"
 import { createClient } from "@/lib/supabase/server"
 import { withQueryString } from "@/lib/url"
 
@@ -27,7 +31,7 @@ function getProductErrorMessage(error: { code?: string; message: string }, name:
     return `藥材「${name}」已存在，請改用其他名稱。`
   }
 
-  return error.message || "藥材資料寫入失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "藥材資料寫入失敗，請稍後再試。")
 }
 
 function getDeleteProductErrorMessage(error: { code?: string; message: string }, name: string) {
@@ -35,11 +39,14 @@ function getDeleteProductErrorMessage(error: { code?: string; message: string },
     return `藥材「${name}」已有進貨、減損或交易履歷，為了保留歷史資料，不能直接刪除。`
   }
 
-  return error.message || `刪除藥材「${name}」失敗，請稍後再試。`
+  return normalizeServerActionErrorMessage(
+    error.message,
+    `刪除藥材「${name}」失敗，請稍後再試。`
+  )
 }
 
 function getUnexpectedErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "發生未預期錯誤，請稍後再試。"
+  return getUnexpectedServerActionErrorMessage(error)
 }
 
 function getProductUnitErrorMessage(error: { code?: string; message: string }, name: string) {
@@ -47,7 +54,7 @@ function getProductUnitErrorMessage(error: { code?: string; message: string }, n
     return `單位「${name}」已存在。`
   }
 
-  return error.message || "新增單位失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "新增單位失敗，請稍後再試。")
 }
 
 export async function createProductAction(

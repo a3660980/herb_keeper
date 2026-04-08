@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
 import { createClient } from "@/lib/supabase/server"
+import { normalizeServerActionErrorMessage } from "@/lib/server-action-errors"
 import { withQueryString } from "@/lib/url"
 
 const REGISTRATION_DISABLED_MESSAGE = "註冊入口已停用，請由管理者在 Supabase 開通帳號。"
@@ -37,7 +38,7 @@ function getAuthErrorMessage(error: { message: string }) {
     return "登入失敗，帳號資料異常，請稍後再試或聯絡管理員。"
   }
 
-  return error.message || "驗證失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "驗證失敗，請稍後再試。")
 }
 
 export async function signInAction(formData: FormData) {

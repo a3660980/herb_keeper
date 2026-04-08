@@ -19,11 +19,15 @@ import {
   type OrderFormState,
   type ShipmentFormState,
 } from "@/lib/features/orders"
+import {
+  getUnexpectedServerActionErrorMessage,
+  normalizeServerActionErrorMessage,
+} from "@/lib/server-action-errors"
 import { createClient } from "@/lib/supabase/server"
 import { withQueryString } from "@/lib/url"
 
 function getUnexpectedErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "發生未預期錯誤，請稍後再試。"
+  return getUnexpectedServerActionErrorMessage(error)
 }
 
 function getOrderActionErrorMessage(error: { code?: string; message: string }) {
@@ -47,7 +51,7 @@ function getOrderActionErrorMessage(error: { code?: string; message: string }) {
     return "部分藥材不存在，請重新整理後再試。"
   }
 
-  return error.message || "建立訂單失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "建立訂單失敗，請稍後再試。")
 }
 
 function getUpdateOrderActionErrorMessage(error: { code?: string; message: string }) {
@@ -83,7 +87,7 @@ function getUpdateOrderActionErrorMessage(error: { code?: string; message: strin
     return "部分藥材不存在，請重新整理後再試。"
   }
 
-  return error.message || "修改訂單失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "修改訂單失敗，請稍後再試。")
 }
 
 function getCancelOrderActionErrorMessage(error: { code?: string; message: string }) {
@@ -103,7 +107,7 @@ function getCancelOrderActionErrorMessage(error: { code?: string; message: strin
     return "這張訂單已不存在，請返回列表後重新操作。"
   }
 
-  return error.message || "撤銷訂單失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "撤銷訂單失敗，請稍後再試。")
 }
 
 function getShipmentActionErrorMessage(error: { code?: string; message: string }) {
@@ -137,7 +141,7 @@ function getShipmentActionErrorMessage(error: { code?: string; message: string }
     return "部分訂單明細已不存在，請重新整理頁面。"
   }
 
-  return error.message || "建立出貨失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "建立出貨失敗，請稍後再試。")
 }
 
 export async function createOrderAction(
