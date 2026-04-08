@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { setFlashSuccess } from "@/lib/flash"
 import {
   createInventoryDisposalFormState,
   getInventoryDisposalFieldErrors,
@@ -16,7 +17,6 @@ import {
   normalizeServerActionErrorMessage,
 } from "@/lib/server-action-errors"
 import { createClient } from "@/lib/supabase/server"
-import { withQueryString } from "@/lib/url"
 
 function getUnexpectedErrorMessage(error: unknown) {
   return getUnexpectedServerActionErrorMessage(error)
@@ -111,10 +111,6 @@ export async function createInventoryDisposalAction(
   revalidatePath("/products")
   revalidatePath(`/products/${parsed.data.productId}`)
 
-  redirect(
-    withQueryString("/inventory/disposals", {
-      productId: parsed.data.productId,
-      statusMessage: "已登錄庫存減損，庫存與減損歷史已同步更新。",
-    })
-  )
+  await setFlashSuccess("已登錄庫存減損，庫存與減損歷史已同步更新。")
+  redirect(`/inventory/disposals?productId=${parsed.data.productId}`)
 }

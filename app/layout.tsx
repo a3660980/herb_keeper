@@ -5,7 +5,7 @@ import { Toaster } from "sonner"
 
 import "./globals.css"
 import { ToastNotification } from "@/components/app/toast-notification"
-import { consumeFlashError } from "@/lib/flash"
+import { consumeFlashError, consumeFlashSuccess } from "@/lib/flash"
 import { getSiteUrl } from "@/lib/site-url"
 import { cn } from "@/lib/utils"
 
@@ -32,6 +32,7 @@ export default async function RootLayout({
   children: React.ReactNode
 }>) {
   const flashError = await consumeFlashError()
+  const flashSuccess = await consumeFlashSuccess()
 
   return (
     <html
@@ -43,7 +44,7 @@ export default async function RootLayout({
     >
       <body className="min-h-screen">
         <Suspense>
-          <ToastNotification flashError={flashError} />
+          <ToastNotification flashError={flashError} flashSuccess={flashSuccess} />
         </Suspense>
         <Toaster position="top-right" duration={5000} richColors closeButton />
         {children}

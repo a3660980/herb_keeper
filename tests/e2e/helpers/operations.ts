@@ -24,7 +24,7 @@ export async function createCustomer(page: Page, customer: {
   }
 
   await page.getByRole("button", { name: "建立客戶" }).click()
-  await expect(page).toHaveURL(/\/customers\?status=/)
+  await expect(page).toHaveURL(/\/customers(?:\?.*)?$/)
   await expect(page.getByText(`已建立客戶：${customer.name}`)).toBeVisible()
 }
 
@@ -50,7 +50,7 @@ export async function createSupplier(page: Page, supplier: {
   }
 
   await page.getByRole("button", { name: "建立供應商" }).click()
-  await expect(page).toHaveURL(/\/suppliers\?status=/)
+  await expect(page).toHaveURL(/\/suppliers(?:\?.*)?$/)
   await expect(page.getByText(`已建立供應商：${supplier.name}`)).toBeVisible()
 }
 
@@ -64,7 +64,7 @@ export async function createProduct(page: Page, product: {
   await page.getByLabel("基準售價").fill(product.basePrice)
   await page.getByLabel("低庫存門檻").fill(product.lowStockThreshold)
   await page.getByRole("button", { name: "建立藥材" }).click()
-  await expect(page).toHaveURL(/\/products\?status=/)
+  await expect(page).toHaveURL(/\/products(?:\?.*)?$/)
   await expect(page.getByText(`已建立藥材：${product.name}`)).toBeVisible()
 }
 

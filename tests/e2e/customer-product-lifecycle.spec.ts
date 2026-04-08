@@ -43,7 +43,7 @@ test("operator can update and delete unreferenced customers and products", async
       await page.getByLabel("折扣倍率").fill("0.85")
       await page.getByRole("button", { name: "儲存變更" }).click()
 
-      await expect(page).toHaveURL(/\/customers\?status=/)
+      await expect(page).toHaveURL(/\/customers(?:\?.*)?$/)
       await expect(page.getByText(`已更新客戶：${updatedCustomerName}`)).toBeVisible()
       await searchCustomer(page, updatedCustomerName)
       const updatedCustomerRow = page.getByRole("row", {
@@ -54,7 +54,7 @@ test("operator can update and delete unreferenced customers and products", async
       await expect(updatedCustomerRow.getByText("0.85")).toBeVisible()
       await updatedCustomerRow.getByRole("button", { name: "刪除" }).click()
 
-      await expect(page).toHaveURL(/\/customers\?status=/)
+      await expect(page).toHaveURL(/\/customers(?:\?.*)?$/)
       await expect(page.getByText(`已刪除客戶：${updatedCustomerName}`)).toBeVisible()
       await searchCustomer(page, updatedCustomerName)
       await expect(page.getByText("找不到符合條件的客戶。")).toBeVisible()
@@ -73,7 +73,7 @@ test("operator can update and delete unreferenced customers and products", async
       await page.getByLabel("低庫存門檻").fill("60")
       await page.getByRole("button", { name: "儲存變更" }).click()
 
-      await expect(page).toHaveURL(/\/products\?status=/)
+      await expect(page).toHaveURL(/\/products(?:\?.*)?$/)
       await expect(page.getByText(`已更新藥材：${updatedProductName}`)).toBeVisible()
       await searchProduct(page, updatedProductName)
       const updatedProductRow = page.getByRole("row", {
@@ -82,7 +82,7 @@ test("operator can update and delete unreferenced customers and products", async
       await expect(updatedProductRow.getByText("$72")).toBeVisible()
       await updatedProductRow.getByRole("button", { name: "刪除" }).click()
 
-      await expect(page).toHaveURL(/\/products\?status=/)
+      await expect(page).toHaveURL(/\/products(?:\?.*)?$/)
       await expect(page.getByText(`已刪除藥材：${updatedProductName}`)).toBeVisible()
       await searchProduct(page, updatedProductName)
       await expect(page.getByText("找不到符合搜尋條件的藥材。")).toBeVisible()
@@ -100,7 +100,7 @@ test("operator can update and delete unreferenced customers and products", async
       await page.getByLabel("備註").fill("已更新備註")
       await page.getByRole("button", { name: "儲存變更" }).click()
 
-      await expect(page).toHaveURL(/\/suppliers\?status=/)
+      await expect(page).toHaveURL(/\/suppliers(?:\?.*)?$/)
       await expect(page.getByText(`已更新供應商：${updatedSupplierName}`)).toBeVisible()
 
       await page.getByPlaceholder("搜尋供應商名稱、電話或地址").fill(updatedSupplierName)
@@ -112,7 +112,7 @@ test("operator can update and delete unreferenced customers and products", async
       await expect(updatedSupplierRow.getByText("已更新備註")).toBeVisible()
       await updatedSupplierRow.getByRole("button", { name: "刪除" }).click()
 
-      await expect(page).toHaveURL(/\/suppliers\?status=/)
+      await expect(page).toHaveURL(/\/suppliers(?:\?.*)?$/)
       await expect(page.getByText(`已刪除供應商：${updatedSupplierName}`)).toBeVisible()
     },
     {

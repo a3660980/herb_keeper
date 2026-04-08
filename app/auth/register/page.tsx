@@ -1,11 +1,8 @@
 import { redirect } from "next/navigation"
 
-import { withQueryString } from "@/lib/url"
+import { setFlashError } from "@/lib/flash"
 
-export default function RegisterPage() {
-  redirect(
-    withQueryString("/auth/login", {
-      status: "註冊入口已停用，請由管理者在 Supabase 開通帳號。",
-    })
-  )
+export default async function RegisterPage() {
+  await setFlashError("註冊入口已停用，請由管理者在 Supabase 開通帳號。")
+  redirect("/auth/login")
 }

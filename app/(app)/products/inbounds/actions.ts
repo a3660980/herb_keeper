@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { setFlashSuccess } from "@/lib/flash"
 import {
   calculateInboundUnitCost,
   createInboundFormState,
@@ -18,7 +19,6 @@ import {
   normalizeServerActionErrorMessage,
 } from "@/lib/server-action-errors"
 import { createClient } from "@/lib/supabase/server"
-import { withQueryString } from "@/lib/url"
 
 function getUnexpectedErrorMessage(error: unknown) {
   return getUnexpectedServerActionErrorMessage(error)
@@ -123,9 +123,6 @@ export async function createInboundAction(
   revalidatePath(`/products/${parsed.data.productId}`)
   revalidatePath("/products/inbounds")
   revalidatePath("/inventory")
-  redirect(
-    withQueryString("/products/inbounds", {
-      statusMessage: "已登錄進貨，庫存、平均成本與進貨歷史已同步更新。",
-    })
-  )
+  await setFlashSuccess("已登錄進貨，庫存、平均成本與進貨歷史已同步更新。")
+  redirect("/products/inbounds")
 }

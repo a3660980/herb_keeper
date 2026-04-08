@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
-import { setFlashError } from "@/lib/flash"
+import { setFlashError, setFlashSuccess } from "@/lib/flash"
 
 import {
   createCustomerFormState,
@@ -20,7 +20,6 @@ import {
   normalizeServerActionErrorMessage,
 } from "@/lib/server-action-errors"
 import { createClient } from "@/lib/supabase/server"
-import { withQueryString } from "@/lib/url"
 
 function getCustomerErrorMessage(error: { code?: string; message: string }, name: string) {
   if (error.code === "23503") {
@@ -75,11 +74,8 @@ export async function createCustomerAction(
   }
 
   revalidatePath("/customers")
-  redirect(
-    withQueryString("/customers", {
-      statusMessage: `已建立客戶：${parsed.data.name}`,
-    })
-  )
+  await setFlashSuccess(`已建立客戶：${parsed.data.name}`)
+  redirect("/customers")
 }
 
 export async function createCustomerQuickAction(
@@ -185,11 +181,8 @@ export async function updateCustomerAction(
 
   revalidatePath("/customers")
   revalidatePath(`/customers/${customerId}/edit`)
-  redirect(
-    withQueryString("/customers", {
-      statusMessage: `已更新客戶：${parsed.data.name}`,
-    })
-  )
+  await setFlashSuccess(`已更新客戶：${parsed.data.name}`)
+  redirect("/customers")
 }
 
 export async function deleteCustomerAction(formData: FormData) {
@@ -220,9 +213,6 @@ export async function deleteCustomerAction(formData: FormData) {
   }
 
   revalidatePath("/customers")
-  redirect(
-    withQueryString("/customers", {
-      statusMessage: `已刪除客戶：${customerName}`,
-    })
-  )
+  await setFlashSuccess(`已刪除客戶：${customerName}`)
+  redirect("/customers")
 }

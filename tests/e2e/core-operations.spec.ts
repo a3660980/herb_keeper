@@ -54,7 +54,7 @@ test("operator can complete the core customer, product, order, shipment, and sal
       await page.getByLabel("備註").fill("Playwright 訂單流程驗證")
       await page.getByRole("button", { name: "建立訂單" }).click()
 
-      await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+\?status=/)
+      await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+(?:\?.*)?$/)
       await expect(page.getByText("已建立訂單，可直接安排出貨。")).toBeVisible()
       await expect(page.locator("#shipmentDate")).toHaveValue(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/)
 
@@ -91,7 +91,7 @@ test("operator can complete the core customer, product, order, shipment, and sal
       await page.getByLabel("備註").fill("Playwright 現場銷貨驗證")
       await page.getByRole("button", { name: "建立現場銷貨" }).click()
 
-      await expect(page).toHaveURL(/\/sales\/[0-9a-f-]+\?status=/)
+      await expect(page).toHaveURL(/\/sales\/[0-9a-f-]+(?:\?.*)?$/)
       await expect(page.getByText("已建立現場銷貨，庫存與報表資料已同步更新。")).toBeVisible()
       await expect(page.getByText(customerName).first()).toBeVisible()
 

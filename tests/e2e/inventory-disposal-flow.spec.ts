@@ -45,7 +45,7 @@ test("operator can record inventory disposal and see stock update", async ({ pag
       await page.getByLabel("備註").fill("E2E 減損流程補庫")
       await page.getByRole("button", { name: "建立進貨紀錄" }).click()
 
-      await expect(page).toHaveURL(/\/products\/inbounds\?status=/)
+      await expect(page).toHaveURL(/\/products\/inbounds(?:\?.*)?$/)
       await expect(page.getByText("已登錄進貨，庫存、平均成本與進貨歷史已同步更新。")).toBeVisible()
 
       await page.goto(`/inventory?q=${encodeURIComponent(productName)}`)
@@ -66,7 +66,7 @@ test("operator can record inventory disposal and see stock update", async ({ pag
       await page.getByLabel("備註").fill("E2E 天災損失")
       await page.getByRole("button", { name: "建立減損紀錄" }).click()
 
-      await expect(page).toHaveURL(/\/inventory\/disposals\?productId=.*status=/)
+      await expect(page).toHaveURL(/\/inventory\/disposals\?productId=[0-9a-f-]+$/)
       await expect(page.getByText("已登錄庫存減損，庫存與減損歷史已同步更新。")).toBeVisible()
 
       const disposalRow = page.getByRole("row", { name: new RegExp(productName) })

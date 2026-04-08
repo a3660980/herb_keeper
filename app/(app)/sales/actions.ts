@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { setFlashSuccess } from "@/lib/flash"
 import { formatQuantity, toNumberValue } from "@/lib/format"
 import {
   createSaleFormState,
@@ -18,7 +19,6 @@ import {
   normalizeServerActionErrorMessage,
 } from "@/lib/server-action-errors"
 import { createClient } from "@/lib/supabase/server"
-import { withQueryString } from "@/lib/url"
 
 function getUnexpectedErrorMessage(error: unknown) {
   return getUnexpectedServerActionErrorMessage(error)
@@ -166,9 +166,6 @@ export async function createDirectSaleAction(
   productIds.forEach((productId) => {
     revalidatePath(`/products/${productId}`)
   })
-  redirect(
-    withQueryString(`/sales/${directSaleId}`, {
-      statusMessage: "已建立現場銷貨，庫存與報表資料已同步更新。",
-    })
-  )
+  await setFlashSuccess("已建立現場銷貨，庫存與報表資料已同步更新。")
+  redirect(`/sales/${directSaleId}`)
 }

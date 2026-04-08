@@ -51,7 +51,7 @@ test("order, shipment, and sale forms retain business selections after validatio
       await orderLine.getByLabel("訂單明細 1 成交單價").fill("52")
       await page.getByRole("button", { name: "建立訂單" }).click()
 
-      await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+\?status=/)
+      await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+(?:\?.*)?$/)
       const shipmentLine = page.getByTestId("shipment-line").first()
       await shipmentLine.getByLabel("黃耆 本次出貨數量").fill("1")
       await page.locator("#shipmentDate").fill("")

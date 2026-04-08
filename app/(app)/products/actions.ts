@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
-import { setFlashError } from "@/lib/flash"
+import { setFlashError, setFlashSuccess } from "@/lib/flash"
 
 import {
   createProductFormState,
@@ -26,7 +26,6 @@ import {
   normalizeServerActionErrorMessage,
 } from "@/lib/server-action-errors"
 import { createClient } from "@/lib/supabase/server"
-import { withQueryString } from "@/lib/url"
 
 function getProductErrorMessage(error: { code?: string; message: string }, name: string) {
   if (error.code === "23505") {
@@ -95,11 +94,8 @@ export async function createProductAction(
   }
 
   revalidatePath("/products")
-  redirect(
-    withQueryString("/products", {
-      statusMessage: `已建立藥材：${parsed.data.name}`,
-    })
-  )
+  await setFlashSuccess(`已建立藥材：${parsed.data.name}`)
+  redirect("/products")
 }
 
 export async function updateProductAction(
@@ -144,11 +140,8 @@ export async function updateProductAction(
   revalidatePath("/products")
   revalidatePath(`/products/${productId}`)
   revalidatePath(`/products/${productId}/edit`)
-  redirect(
-    withQueryString("/products", {
-      statusMessage: `已更新藥材：${parsed.data.name}`,
-    })
-  )
+  await setFlashSuccess(`已更新藥材：${parsed.data.name}`)
+  redirect("/products")
 }
 
 export async function createProductUnitAction(
@@ -249,9 +242,6 @@ export async function deleteProductAction(formData: FormData) {
   }
 
   revalidatePath("/products")
-  redirect(
-    withQueryString("/products", {
-      statusMessage: `已刪除藥材：${productName}`,
-    })
-  )
+  await setFlashSuccess(`已刪除藥材：${productName}`)
+  redirect("/products")
 }

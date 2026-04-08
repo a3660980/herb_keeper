@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
-import { setFlashError } from "@/lib/flash"
+import { setFlashError, setFlashSuccess } from "@/lib/flash"
 
 import {
   createSupplierFormState,
@@ -20,7 +20,6 @@ import {
   normalizeServerActionErrorMessage,
 } from "@/lib/server-action-errors"
 import { createClient } from "@/lib/supabase/server"
-import { withQueryString } from "@/lib/url"
 
 function getSupplierErrorMessage(error: { code?: string; message: string }, name: string) {
   if (error.code === "23505") {
@@ -74,11 +73,8 @@ export async function createSupplierAction(
 
   revalidatePath("/suppliers")
   revalidatePath("/products/inbounds/new")
-  redirect(
-    withQueryString("/suppliers", {
-      statusMessage: `已建立供應商：${parsed.data.name}`,
-    })
-  )
+  await setFlashSuccess(`已建立供應商：${parsed.data.name}`)
+  redirect("/suppliers")
 }
 
 export async function createSupplierQuickAction(
@@ -177,11 +173,8 @@ export async function updateSupplierAction(
   revalidatePath("/suppliers")
   revalidatePath(`/suppliers/${supplierId}/edit`)
   revalidatePath("/products/inbounds/new")
-  redirect(
-    withQueryString("/suppliers", {
-      statusMessage: `已更新供應商：${parsed.data.name}`,
-    })
-  )
+  await setFlashSuccess(`已更新供應商：${parsed.data.name}`)
+  redirect("/suppliers")
 }
 
 export async function deleteSupplierAction(formData: FormData) {
@@ -213,9 +206,6 @@ export async function deleteSupplierAction(formData: FormData) {
 
   revalidatePath("/suppliers")
   revalidatePath("/products/inbounds/new")
-  redirect(
-    withQueryString("/suppliers", {
-      statusMessage: `已刪除供應商：${supplierName}`,
-    })
-  )
+  await setFlashSuccess(`已刪除供應商：${supplierName}`)
+  redirect("/suppliers")
 }

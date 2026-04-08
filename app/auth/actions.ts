@@ -3,11 +3,10 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
-import { setFlashError } from "@/lib/flash"
+import { setFlashError, setFlashSuccess } from "@/lib/flash"
 
 import { createClient } from "@/lib/supabase/server"
 import { normalizeServerActionErrorMessage } from "@/lib/server-action-errors"
-import { withQueryString } from "@/lib/url"
 
 const REGISTRATION_DISABLED_MESSAGE = "註冊入口已停用，請由管理者在 Supabase 開通帳號。"
 
@@ -77,9 +76,6 @@ export async function signOutAction() {
   await supabase.auth.signOut()
 
   revalidatePath("/", "layout")
-  redirect(
-    withQueryString("/auth/login", {
-      statusMessage: "已安全登出。",
-    })
-  )
+  await setFlashSuccess("已安全登出。")
+  redirect("/auth/login")
 }
