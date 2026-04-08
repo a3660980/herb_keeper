@@ -160,8 +160,8 @@ export async function createDirectSaleAction(
 
   revalidatePath("/dashboard")
   revalidatePath("/products")
+  revalidatePath("/products/disposals")
   revalidatePath("/sales")
-  revalidatePath("/inventory")
   revalidatePath("/reports")
   productIds.forEach((productId) => {
     revalidatePath(`/products/${productId}`)

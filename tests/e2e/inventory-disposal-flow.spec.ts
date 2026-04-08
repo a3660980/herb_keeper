@@ -48,7 +48,7 @@ test("operator can record inventory disposal and see stock update", async ({ pag
       await expect(page).toHaveURL(/\/products\/inbounds(?:\?.*)?$/)
       await expect(page.getByText("已登錄進貨，庫存、平均成本與進貨歷史已同步更新。")).toBeVisible()
 
-      await page.goto(`/inventory?q=${encodeURIComponent(productName)}`)
+      await page.goto(`/products?q=${encodeURIComponent(productName)}`)
       const inventoryRow = page.getByRole("row", { name: new RegExp(productName) })
       const inventoryDisposalLink = inventoryRow
         .getByRole("cell")
@@ -58,7 +58,7 @@ test("operator can record inventory disposal and see stock update", async ({ pag
       await expect(inventoryDisposalLink).toBeVisible()
 
       await inventoryDisposalLink.click()
-      await expect(page).toHaveURL(/\/inventory\/disposals\/new\?productId=/)
+      await expect(page).toHaveURL(/\/products\/disposals\/new\?productId=/)
       await expect(page.getByLabel("減損數量")).toHaveValue("")
 
       await page.getByLabel("減損數量").fill("2.5")
@@ -66,7 +66,7 @@ test("operator can record inventory disposal and see stock update", async ({ pag
       await page.getByLabel("備註").fill("E2E 天災損失")
       await page.getByRole("button", { name: "建立減損紀錄" }).click()
 
-      await expect(page).toHaveURL(/\/inventory\/disposals\?productId=[0-9a-f-]+$/)
+      await expect(page).toHaveURL(/\/products\/disposals\?productId=[0-9a-f-]+$/)
       await expect(page.getByText("已登錄庫存減損，庫存與減損歷史已同步更新。")).toBeVisible()
 
       const disposalRow = page.getByRole("row", { name: new RegExp(productName) })
@@ -74,7 +74,7 @@ test("operator can record inventory disposal and see stock update", async ({ pag
       await expect(disposalRow.getByText("2.5 g", { exact: true })).toBeVisible()
       await expect(disposalRow.getByText("E2E 天災損失")).toBeVisible()
 
-      await page.goto(`/inventory?q=${encodeURIComponent(productName)}`)
+      await page.goto(`/products?q=${encodeURIComponent(productName)}`)
       const updatedInventoryRow = page.getByRole("row", { name: new RegExp(productName) })
       await expect(updatedInventoryRow).toBeVisible()
       await expect(

@@ -2,14 +2,11 @@ import Link from "next/link"
 
 import { createOrderAction } from "@/app/(app)/orders/actions"
 import { createDirectSaleAction } from "@/app/(app)/sales/actions"
+import { TradeCreateFormShell } from "@/components/app/trade-create-form-shell"
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
-import { TradeModuleSwitch } from "@/components/app/trade-module-switch"
-import { OrderForm } from "@/components/orders/order-form"
-import { SaleForm } from "@/components/sales/sale-form"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import {
   createOrderFormState,
 } from "@/lib/features/orders"
@@ -17,13 +14,14 @@ import { createSaleFormState } from "@/lib/features/sales"
 import {
   tradeCreateModeConfig,
   type TradeCustomerOption,
+  type TradeKind,
   type TradeProductOption,
 } from "@/lib/features/trades"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
 
 type TradeCreatePageProps = {
-  mode: "order" | "sale"
+  initialMode: TradeKind
 }
 
 type CustomerRow = {
@@ -42,12 +40,12 @@ type ProductRow = {
   is_low_stock: boolean
 }
 
-export async function TradeCreatePage({ mode }: TradeCreatePageProps) {
+export async function TradeCreatePage({ initialMode }: TradeCreatePageProps) {
   const supabaseEnvReady = hasSupabaseEnv()
   let customers: TradeCustomerOption[] = []
   let products: TradeProductOption[] = []
   let loadError = ""
-  const modeConfig = tradeCreateModeConfig[mode]
+  const initialModeConfig = tradeCreateModeConfig[initialMode]
 
   if (supabaseEnvReady) {
     try {
@@ -101,25 +99,15 @@ export async function TradeCreatePage({ mode }: TradeCreatePageProps) {
       <PageIntro
         eyebrow="交易管理"
         title="新增交易"
+        description="在同一頁切換訂單出貨與現場銷貨，避免因為兩套相似表單而混淆。"
         aside={
           <div className="flex flex-col gap-3">
-            <div className="space-y-2">
-              <p className="text-[11px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-                切換建立模式
-              </p>
-              <TradeModuleSwitch
-                active={mode === "order" ? "orders" : "sales"}
-                orderHref="/orders/new"
-                saleHref="/sales/new"
-                ariaLabel="交易建立模式切換"
-              />
-            </div>
-
-            <Separator />
-
-            <div className="flex justify-end">
+            <div className="flex flex-wrap justify-end gap-3">
               <Button asChild size="sm" variant="outline">
-                <Link href={modeConfig.returnHref}>{modeConfig.returnLabel}</Link>
+                <Link href="/orders">訂單列表</Link>
+              </Button>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/sales">銷貨列表</Link>
               </Button>
             </div>
           </div>
@@ -146,28 +134,18 @@ export async function TradeCreatePage({ mode }: TradeCreatePageProps) {
 
           <Card className="border border-border/60 bg-card/85 shadow-sm backdrop-blur">
             <CardHeader>
-              <CardTitle>{modeConfig.cardTitle}</CardTitle>
+              <CardTitle>{initialModeConfig.cardTitle}</CardTitle>
             </CardHeader>
             <CardContent>
-              {mode === "order" ? (
-                <OrderForm
-                  action={createOrderAction}
-                  initialState={createOrderFormState()}
-                  customers={customers}
-                  products={products}
-                  submitLabel={modeConfig.submitLabel}
-                  pendingLabel={modeConfig.pendingLabel}
-                />
-              ) : (
-                <SaleForm
-                  action={createDirectSaleAction}
-                  initialState={createSaleFormState()}
-                  customers={customers}
-                  products={products}
-                  submitLabel={modeConfig.submitLabel}
-                  pendingLabel={modeConfig.pendingLabel}
-                />
-              )}
+              <TradeCreateFormShell
+                initialMode={initialMode}
+                customers={customers}
+                products={products}
+                orderAction={createOrderAction}
+                saleAction={createDirectSaleAction}
+                orderInitialState={createOrderFormState()}
+                saleInitialState={createSaleFormState()}
+              />
             </CardContent>
           </Card>
         </div>

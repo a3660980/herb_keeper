@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useEffectEvent, useRef, useState } from "react"
 
 import { FormMessage } from "@/components/app/form-message"
+import { FormStateToast } from "@/components/app/form-state-toast"
 import { SubmitButton } from "@/components/app/submit-button"
 import { QuickCreateCustomerSheet } from "@/components/customers/quick-create-customer-sheet"
 import { Badge } from "@/components/ui/badge"
@@ -188,7 +189,7 @@ export function SaleForm({
         }
       }}
     >
-      {state.message ? <FormMessage message={state.message} tone="error" /> : null}
+      <FormStateToast message={state.message} trigger={state} />
 
       <input type="hidden" name="payload" value={payload} />
       <input
@@ -198,65 +199,63 @@ export function SaleForm({
         defaultValue="0"
       />
 
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_15rem]">
-        <div className="grid gap-5 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="customerId">客戶</Label>
-            <div className="flex flex-col gap-2 md:flex-row">
-              <div className="min-w-0 flex-1">
-                <SearchableSelect
-                  id="customerId"
-                  value={values.customerId}
-                  options={customerSelectOptions}
-                  placeholder="請選擇客戶"
-                  searchPlaceholder="搜尋客戶名稱或電話"
-                  emptyMessage="找不到符合的客戶"
-                  clearLabel="清除客戶"
-                  ariaLabel="客戶"
-                  invalid={Boolean(state.fieldErrors.customerId)}
-                  onValueChange={(nextCustomerId) => {
-
-                    setValues((current) => ({
-                      ...current,
-                      customerId: nextCustomerId,
-                      items: current.items.map((item) => {
-                        if (!item.productId) {
-                          return item
-                        }
-
-                        const previousSuggested = getSuggestedUnitPrice(
-                          item.productId,
-                          current.customerId
-                        )
-                        const nextSuggested = getSuggestedUnitPrice(
-                          item.productId,
-                          nextCustomerId
-                        )
-
-                        if (
-                          item.finalUnitPrice === "" ||
-                          item.finalUnitPrice === previousSuggested
-                        ) {
-                          return {
-                            ...item,
-                            finalUnitPrice: nextSuggested,
-                          }
-                        }
-
-                        return item
-                      }),
-                    }))
-                  }}
-                />
-              </div>
-              <QuickCreateCustomerSheet
-                onCreated={handleCustomerCreated}
-                triggerClassName="self-start md:shrink-0"
-              />
+      <div className="grid gap-5 md:grid-cols-2">
+          <div className="space-y-2 md:col-span-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Label htmlFor="customerId">客戶</Label>
+              <QuickCreateCustomerSheet onCreated={handleCustomerCreated} />
             </div>
+            <SearchableSelect
+              id="customerId"
+              value={values.customerId}
+              options={customerSelectOptions}
+              placeholder="請選擇客戶"
+              searchPlaceholder="搜尋客戶名稱或電話"
+              emptyMessage="找不到符合的客戶"
+              clearLabel="清除客戶"
+              ariaLabel="客戶"
+              invalid={Boolean(state.fieldErrors.customerId)}
+              onValueChange={(nextCustomerId) => {
+                setValues((current) => ({
+                  ...current,
+                  customerId: nextCustomerId,
+                  items: current.items.map((item) => {
+                    if (!item.productId) {
+                      return item
+                    }
+
+                    const previousSuggested = getSuggestedUnitPrice(
+                      item.productId,
+                      current.customerId
+                    )
+                    const nextSuggested = getSuggestedUnitPrice(
+                      item.productId,
+                      nextCustomerId
+                    )
+
+                    if (
+                      item.finalUnitPrice === "" ||
+                      item.finalUnitPrice === previousSuggested
+                    ) {
+                      return {
+                        ...item,
+                        finalUnitPrice: nextSuggested,
+                      }
+                    }
+
+                    return item
+                  }),
+                }))
+              }}
+            />
             {state.fieldErrors.customerId ? (
               <p className="text-sm text-destructive">
                 {state.fieldErrors.customerId}
+              </p>
+            ) : null}
+            {customerOptions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                目前還沒有客戶，先用右上角抽屜快速建立第一筆。
               </p>
             ) : null}
           </div>
@@ -296,17 +295,6 @@ export function SaleForm({
               <p className="text-sm text-destructive">{state.fieldErrors.note}</p>
             ) : null}
           </div>
-        </div>
-
-        <div className="rounded-[1.75rem] border border-primary/18 bg-primary/10 p-4 shadow-sm sm:p-5">
-          <div className="text-sm font-medium text-foreground">本次銷貨總額</div>
-          <div className="mt-2 text-2xl font-semibold text-foreground">
-            {formatCurrency(totalAmount)}
-          </div>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            送出後會立即更新庫存與營收統計。
-          </p>
-        </div>
       </div>
 
       <div className="space-y-4">
@@ -495,6 +483,16 @@ export function SaleForm({
           })}
           </div>
         </div>
+      </div>
+
+      <div className="rounded-[1.75rem] border border-primary/18 bg-primary/10 p-4 shadow-sm sm:p-5">
+        <div className="text-sm font-medium text-foreground">本次銷貨總額</div>
+        <div className="mt-2 text-2xl font-semibold text-foreground">
+          {formatCurrency(totalAmount)}
+        </div>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          送出後會立即更新庫存與營收統計。
+        </p>
       </div>
 
       <div className="flex flex-wrap justify-end gap-3">

@@ -538,7 +538,7 @@ export default async function ProductDetailPage({
             </Button>
             {ledgerStock > 0 ? (
               <Button asChild variant="outline">
-                <Link href={withQueryString("/inventory/disposals/new", { productId: id })}>
+                <Link href={withQueryString("/products/disposals/new", { productId: id })}>
                   新增減損
                 </Link>
               </Button>
@@ -547,7 +547,7 @@ export default async function ProductDetailPage({
               <Link href={`/products/${id}/edit`}>編輯藥材</Link>
             </Button>
             <Button asChild variant="outline">
-              <Link href="/products">返回藥材管理</Link>
+              <Link href="/products">返回藥材庫存管理</Link>
             </Button>
           </div>
         }
@@ -797,7 +797,7 @@ export default async function ProductDetailPage({
               <CardAction>
                 <Button asChild size="sm" variant="outline">
                   <Link
-                    href={withQueryString("/inventory/disposals", {
+                    href={withQueryString("/products/disposals", {
                       productId: id,
                       startDate: startDate || undefined,
                       endDate: endDate || undefined,

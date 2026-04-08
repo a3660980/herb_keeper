@@ -85,7 +85,7 @@ test("operator can update and delete unreferenced customers and products", async
       await expect(page).toHaveURL(/\/products(?:\?.*)?$/)
       await expect(page.getByText(`已刪除藥材：${updatedProductName}`)).toBeVisible()
       await searchProduct(page, updatedProductName)
-      await expect(page.getByText("找不到符合搜尋條件的藥材。")).toBeVisible()
+      await expect(page.getByText("找不到符合條件的藥材庫存資料。")).toBeVisible()
 
       await createSupplier(page, {
         name: supplierName,

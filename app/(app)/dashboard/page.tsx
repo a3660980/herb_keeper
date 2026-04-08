@@ -416,8 +416,8 @@ export default async function DashboardPage() {
               : "目前沒有低庫存品項"
           }
           badge="Inventory"
-          href="/inventory"
-          hrefLabel="庫存總覽"
+          href="/products?filter=low"
+          hrefLabel="藥材庫存管理"
         />
       </div>
 
@@ -549,7 +549,7 @@ export default async function DashboardPage() {
                   </CardDescription>
                 </div>
                 <Button asChild size="sm" variant="outline">
-                  <Link href="/inventory?filter=low">前往庫存</Link>
+                  <Link href="/products?filter=low">前往藥材庫存管理</Link>
                 </Button>
               </div>
             </CardHeader>

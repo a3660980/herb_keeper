@@ -48,7 +48,7 @@ test("operator can cancel a pending order before any shipment", async ({ page })
       await orderLine.getByLabel("訂單明細 1 訂購數量").fill("2")
       await orderLine.getByLabel("訂單明細 1 成交單價").fill("52")
       await page.getByLabel("備註").fill(orderNote)
-      await page.getByRole("button", { name: "建立訂單" }).click()
+      await page.getByRole("button", { name: "建立訂單", exact: true }).click()
 
       await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+(?:\?.*)?$/)
       await expect(page.getByText("已建立訂單，可直接安排出貨。")).toBeVisible()

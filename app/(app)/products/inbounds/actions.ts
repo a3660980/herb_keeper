@@ -122,7 +122,7 @@ export async function createInboundAction(
   revalidatePath("/products")
   revalidatePath(`/products/${parsed.data.productId}`)
   revalidatePath("/products/inbounds")
-  revalidatePath("/inventory")
+  revalidatePath("/products/disposals")
   await setFlashSuccess("已登錄進貨，庫存、平均成本與進貨歷史已同步更新。")
   redirect("/products/inbounds")
 }

@@ -36,5 +36,10 @@ test("order and sale line items auto-scroll on append and hide remove when only 
   await login(page)
 
   await expectTradeLineInteractions(page, "/orders/new", "order-line", "order-lines-scroll-area")
-  await expectTradeLineInteractions(page, "/sales/new", "sale-line", "sale-lines-scroll-area")
+  await expectTradeLineInteractions(
+    page,
+    "/orders/new?type=sale",
+    "sale-line",
+    "sale-lines-scroll-area"
+  )
 })

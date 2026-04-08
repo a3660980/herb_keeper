@@ -153,7 +153,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
 
             <div className="flex justify-end">
               <Button asChild size="sm">
-                <Link href="/sales/new">新增交易</Link>
+                <Link href="/orders/new?type=sale">新增交易</Link>
               </Button>
             </div>
           </div>

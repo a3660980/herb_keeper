@@ -175,7 +175,7 @@ export default async function DirectSaleDetailPage({
               <Link href="/sales">返回銷貨列表</Link>
             </Button>
             <Button asChild>
-              <Link href="/sales/new">新增交易</Link>
+              <Link href="/orders/new?type=sale">新增交易</Link>
             </Button>
           </div>
         }

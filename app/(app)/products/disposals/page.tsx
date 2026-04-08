@@ -274,7 +274,7 @@ export default async function InventoryDisposalsPage({
     endDate?: string
     page?: number
   }) =>
-    withQueryString("/inventory/disposals", {
+    withQueryString("/products/disposals", {
       productId: overrides.productId,
       reason: overrides.reason || undefined,
       q: overrides.q,
@@ -295,7 +295,7 @@ export default async function InventoryDisposalsPage({
   return (
     <div className="space-y-6">
       <PageIntro
-        eyebrow="Inventory"
+        eyebrow="Products"
         title={selectedProduct ? `${selectedProduct.name} 減損紀錄` : "庫存減損歷史"}
         description={
           selectedProduct
@@ -308,8 +308,8 @@ export default async function InventoryDisposalsPage({
               <Link
                 href={
                   selectedProductId
-                    ? withQueryString("/inventory/disposals/new", { productId: selectedProductId })
-                    : "/inventory/disposals/new"
+                    ? withQueryString("/products/disposals/new", { productId: selectedProductId })
+                    : "/products/disposals/new"
                 }
               >
                 新增減損
@@ -317,7 +317,7 @@ export default async function InventoryDisposalsPage({
             </Button>
             {selectedProductId ? (
               <Button asChild variant="outline">
-                <Link href="/inventory/disposals">查看全部減損</Link>
+                <Link href="/products/disposals">查看全部減損</Link>
               </Button>
             ) : null}
             {selectedProductId ? (
@@ -326,7 +326,7 @@ export default async function InventoryDisposalsPage({
               </Button>
             ) : null}
             <Button asChild variant="outline">
-              <Link href="/inventory">返回庫存總覽</Link>
+              <Link href="/products">返回藥材庫存管理</Link>
             </Button>
           </div>
         }
@@ -430,16 +430,12 @@ export default async function InventoryDisposalsPage({
               : `顯示第 ${pagination.pageStart} - ${pagination.pageEnd} 筆，共 ${disposalRows.length} 筆減損紀錄。`}
           </CardDescription>
           <CardAction>
-            <Button
-              asChild
-              size="sm"
-              variant="outline"
-            >
+            <Button asChild size="sm" variant="outline">
               <Link
                 href={
                   selectedProductId
-                    ? withQueryString("/inventory/disposals/new", { productId: selectedProductId })
-                    : "/inventory/disposals/new"
+                    ? withQueryString("/products/disposals/new", { productId: selectedProductId })
+                    : "/products/disposals/new"
                 }
               >
                 新增減損

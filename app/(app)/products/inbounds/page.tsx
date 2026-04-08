@@ -317,7 +317,7 @@ export default async function InboundHistoryPage({ searchParams }: InboundHistor
               </Button>
             ) : null}
             <Button asChild variant="outline">
-              <Link href="/products">返回藥材管理</Link>
+              <Link href="/products">返回藥材庫存管理</Link>
             </Button>
           </div>
         }

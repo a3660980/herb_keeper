@@ -1,9 +1,9 @@
 import Link from "next/link"
 
-import { createInventoryDisposalAction } from "@/app/(app)/inventory/disposals/actions"
+import { createInventoryDisposalAction } from "@/app/(app)/products/disposals/actions"
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
-import { InventoryDisposalForm } from "@/components/inventory/inventory-disposal-form"
+import { InventoryDisposalForm } from "@/components/products/inventory-disposal-form"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -73,19 +73,16 @@ export default async function NewInventoryDisposalPage({
   return (
     <div className="space-y-6">
       <PageIntro
-        eyebrow="Inventory"
+        eyebrow="Products"
         title="新增庫存減損"
         description="記錄天災、品質毀損、退貨等非銷售性庫存減量，系統會同步寫入減損歷史與帳面庫存。"
         aside={
           <div className="flex flex-wrap gap-3">
             <Button asChild variant="outline">
-              <Link href="/inventory/disposals">減損歷史</Link>
+              <Link href="/products/disposals">減損歷史</Link>
             </Button>
             <Button asChild variant="outline">
-              <Link href="/inventory">返回庫存總覽</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/products">返回藥材管理</Link>
+              <Link href="/products">返回藥材庫存管理</Link>
             </Button>
           </div>
         }

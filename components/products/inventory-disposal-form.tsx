@@ -272,7 +272,7 @@ export function InventoryDisposalForm({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
-        <p className="text-sm text-muted-foreground">減損建立後會保留歷史紀錄，並立即反映在庫存總覽與藥材詳情。</p>
+        <p className="text-sm text-muted-foreground">減損建立後會保留歷史紀錄，並立即反映在藥材庫存管理模組與藥材詳情。</p>
         <SubmitButton pendingLabel={pendingLabel}>{submitLabel}</SubmitButton>
       </div>
     </form>

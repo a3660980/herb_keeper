@@ -88,6 +88,7 @@ function QuickCreateCustomerSheetForm({
             id="quickCustomerAddress"
             name="address"
             defaultValue={state.values.address}
+            placeholder="例如：台北市大同區示範路 12 號"
           />
           {state.fieldErrors.address ? (
             <p className="text-sm text-destructive">{state.fieldErrors.address}</p>
@@ -128,7 +129,7 @@ function QuickCreateCustomerSheetForm({
             <p className="text-sm text-destructive">{state.fieldErrors.discountRate}</p>
           ) : null}
           <p className="text-sm text-muted-foreground">
-            建立後會自動帶回交易表單並選取這位客戶。
+            建立後會直接帶回目前這筆交易並自動選取這位客戶。
           </p>
         </div>
       </div>
@@ -155,19 +156,16 @@ export function QuickCreateCustomerSheet({
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button type="button" variant="outline" size="lg" className={triggerClassName}>
+        <Button type="button" variant="outline" size="sm" className={triggerClassName}>
           快速新增客戶
         </Button>
       </SheetTrigger>
 
-      <SheetContent
-        side="right"
-        className="w-full border-l border-border/70 sm:max-w-lg"
-      >
+      <SheetContent side="right" className="w-full border-l border-border/70 sm:max-w-lg">
         <SheetHeader className="border-b border-border/70 px-6 py-5">
           <SheetTitle>快速新增客戶</SheetTitle>
           <SheetDescription>
-            建立完成後，這位客戶會直接加入目前這筆交易。
+            不離開交易表單，直接補上新客戶並帶回當前流程。
           </SheetDescription>
         </SheetHeader>
 
