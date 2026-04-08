@@ -31,13 +31,11 @@ import {
 } from "@/lib/features/orders"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
-import { getSingleSearchParam } from "@/lib/url"
 
 import { cancelOrderAction, createShipmentAction } from "../actions"
 
 type OrderPageProps = {
   params: Promise<{ id: string }>
-  searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
 type OrderRow = {
@@ -102,12 +100,8 @@ function getStatusVariant(status: OrderStatus) {
 
 export default async function OrderDetailPage({
   params,
-  searchParams,
 }: OrderPageProps) {
   const { id } = await params
-  const query = await searchParams
-  const status = getSingleSearchParam(query.status)
-  const error = getSingleSearchParam(query.error)
   const supabaseEnvReady = hasSupabaseEnv()
 
   if (!supabaseEnvReady) {
@@ -279,8 +273,6 @@ export default async function OrderDetailPage({
         }
       />
 
-      {status ? <FormMessage message={status} tone="success" /> : null}
-      {error ? <FormMessage message={error} tone="error" /> : null}
       {loadError ? <FormMessage message={loadError} tone="error" /> : null}
 
       <div className="grid gap-4 md:grid-cols-4">

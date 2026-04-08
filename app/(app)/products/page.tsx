@@ -50,8 +50,6 @@ function toNumber(value: number | string | null | undefined) {
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const params = await searchParams
   const query = getSingleSearchParam(params.q)?.trim() ?? ""
-  const status = getSingleSearchParam(params.status)
-  const error = getSingleSearchParam(params.error)
   const supabaseEnvReady = hasSupabaseEnv()
 
   let products: ProductListItem[] = []
@@ -113,9 +111,6 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           </div>
         }
       />
-
-      {status ? <FormMessage message={status} tone="success" /> : null}
-      {error ? <FormMessage message={error} tone="error" /> : null}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="border border-border/60 bg-card/85 shadow-sm backdrop-blur">

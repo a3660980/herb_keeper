@@ -272,8 +272,6 @@ export default async function ProductDetailPage({
 }: ProductDetailPageProps) {
   const { id } = await params
   const query = await searchParams
-  const status = getSingleSearchParam(query.status)
-  const error = getSingleSearchParam(query.error)
   const selectedSupplierId = readUuidParam(query.supplierId)
   const startDate = readDateParam(query.startDate)
   const endDate = readDateParam(query.endDate)
@@ -555,8 +553,6 @@ export default async function ProductDetailPage({
         }
       />
 
-      {status ? <FormMessage message={status} tone="success" /> : null}
-      {error ? <FormMessage message={error} tone="error" /> : null}
       {loadError ? <FormMessage message={loadError} tone="error" /> : null}
       {dateRangeError ? <FormMessage message={dateRangeError} tone="error" /> : null}
 

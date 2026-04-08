@@ -168,7 +168,7 @@ export async function createDirectSaleAction(
   })
   redirect(
     withQueryString(`/sales/${directSaleId}`, {
-      status: "已建立現場銷貨，庫存與報表資料已同步更新。",
+      statusMessage: "已建立現場銷貨，庫存與報表資料已同步更新。",
     })
   )
 }

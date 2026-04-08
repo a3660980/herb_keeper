@@ -125,7 +125,7 @@ export async function createInboundAction(
   revalidatePath("/inventory")
   redirect(
     withQueryString("/products/inbounds", {
-      status: "已登錄進貨，庫存、平均成本與進貨歷史已同步更新。",
+      statusMessage: "已登錄進貨，庫存、平均成本與進貨歷史已同步更新。",
     })
   )
 }

@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { setFlashError } from "@/lib/flash"
+
 import { formatQuantity, toNumberValue } from "@/lib/format"
 import {
   createOrderFormState,
@@ -206,7 +208,7 @@ export async function createOrderAction(
   revalidatePath("/orders")
   redirect(
     withQueryString(`/orders/${orderId}`, {
-      status: "已建立訂單，可直接安排出貨。",
+      statusMessage: "已建立訂單，可直接安排出貨。",
     })
   )
 }
@@ -273,7 +275,7 @@ export async function updateOrderAction(
   revalidatePath(`/orders/${orderId}/edit`)
   redirect(
     withQueryString(`/orders/${orderId}`, {
-      status: "已更新訂單內容。",
+      statusMessage: "已更新訂單內容。",
     })
   )
 }
@@ -297,11 +299,8 @@ export async function cancelOrderAction(orderId: string, redirectToList = false)
   }
 
   if (errorMessage) {
-    redirect(
-      redirectToList
-        ? withQueryString("/orders", { error: errorMessage })
-        : withQueryString(`/orders/${orderId}`, { error: errorMessage })
-    )
+    await setFlashError(errorMessage)
+    redirect(redirectToList ? "/orders" : `/orders/${orderId}`)
   }
 
   revalidatePath("/orders")
@@ -313,7 +312,7 @@ export async function cancelOrderAction(orderId: string, redirectToList = false)
     redirectToList
       ? withQueryString("/orders", { statusMessage: "已撤銷訂單。" })
       : withQueryString(`/orders/${orderId}`, {
-          status: "已撤銷訂單，不能再修改或出貨。",
+          statusMessage: "已撤銷訂單，不能再修改或出貨。",
         })
   )
 }
@@ -471,7 +470,7 @@ export async function createShipmentAction(
   })
   redirect(
     `${withQueryString(`/orders/${orderId}`, {
-      status: "出貨完成，庫存與訂單狀態已同步更新。",
+      statusMessage: "出貨完成，庫存與訂單狀態已同步更新。",
     })}#shipment-form`
   )
 }

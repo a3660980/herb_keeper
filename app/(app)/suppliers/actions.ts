@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { setFlashError } from "@/lib/flash"
+
 import {
   createSupplierFormState,
   createQuickSupplierFormState,
@@ -74,7 +76,7 @@ export async function createSupplierAction(
   revalidatePath("/products/inbounds/new")
   redirect(
     withQueryString("/suppliers", {
-      status: `已建立供應商：${parsed.data.name}`,
+      statusMessage: `已建立供應商：${parsed.data.name}`,
     })
   )
 }
@@ -177,7 +179,7 @@ export async function updateSupplierAction(
   revalidatePath("/products/inbounds/new")
   redirect(
     withQueryString("/suppliers", {
-      status: `已更新供應商：${parsed.data.name}`,
+      statusMessage: `已更新供應商：${parsed.data.name}`,
     })
   )
 }
@@ -187,11 +189,8 @@ export async function deleteSupplierAction(formData: FormData) {
   const supplierName = String(formData.get("supplierName") ?? "這個供應商")
 
   if (!supplierId) {
-    redirect(
-      withQueryString("/suppliers", {
-        error: "缺少要刪除的供應商識別碼。",
-      })
-    )
+    await setFlashError("缺少要刪除的供應商識別碼。")
+    redirect("/suppliers")
   }
 
   let errorMessage = ""
@@ -208,18 +207,15 @@ export async function deleteSupplierAction(formData: FormData) {
   }
 
   if (errorMessage) {
-    redirect(
-      withQueryString("/suppliers", {
-        error: errorMessage,
-      })
-    )
+    await setFlashError(errorMessage)
+    redirect("/suppliers")
   }
 
   revalidatePath("/suppliers")
   revalidatePath("/products/inbounds/new")
   redirect(
     withQueryString("/suppliers", {
-      status: `已刪除供應商：${supplierName}`,
+      statusMessage: `已刪除供應商：${supplierName}`,
     })
   )
 }

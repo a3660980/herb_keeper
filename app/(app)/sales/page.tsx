@@ -56,8 +56,6 @@ type DirectSaleItemRow = {
 export default async function SalesPage({ searchParams }: SalesPageProps) {
   const params = await searchParams
   const query = getSingleSearchParam(params.q)?.trim() ?? ""
-  const status = getSingleSearchParam(params.status)
-  const error = getSingleSearchParam(params.error)
   const supabaseEnvReady = hasSupabaseEnv()
 
   let sales: TradeSummary[] = []
@@ -150,9 +148,6 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
           </div>
         }
       />
-
-      {status ? <FormMessage message={status} tone="success" /> : null}
-      {error ? <FormMessage message={error} tone="error" /> : null}
 
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="border border-border/60 bg-card/85 shadow-sm backdrop-blur">

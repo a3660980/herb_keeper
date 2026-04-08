@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { setFlashError } from "@/lib/flash"
+
 import { createClient } from "@/lib/supabase/server"
 import { normalizeServerActionErrorMessage } from "@/lib/server-action-errors"
 import { withQueryString } from "@/lib/url"
@@ -46,11 +48,8 @@ export async function signInAction(formData: FormData) {
   const password = String(formData.get("password") ?? "")
 
   if (!email || !password) {
-    redirect(
-      withQueryString("/auth/login", {
-        error: "請輸入電子郵件與密碼。",
-      })
-    )
+    await setFlashError("請輸入電子郵件與密碼。")
+    redirect("/auth/login")
   }
 
   const supabase = await createClient()
@@ -60,11 +59,8 @@ export async function signInAction(formData: FormData) {
   })
 
   if (error) {
-    redirect(
-      withQueryString("/auth/login", {
-        error: getAuthErrorMessage(error),
-      })
-    )
+    await setFlashError(getAuthErrorMessage(error))
+    redirect("/auth/login")
   }
 
   revalidatePath("/", "layout")
@@ -72,11 +68,8 @@ export async function signInAction(formData: FormData) {
 }
 
 export async function signUpAction() {
-  redirect(
-    withQueryString("/auth/login", {
-      error: REGISTRATION_DISABLED_MESSAGE,
-    })
-  )
+  await setFlashError(REGISTRATION_DISABLED_MESSAGE)
+  redirect("/auth/login")
 }
 
 export async function signOutAction() {
@@ -86,7 +79,7 @@ export async function signOutAction() {
   revalidatePath("/", "layout")
   redirect(
     withQueryString("/auth/login", {
-      status: "已安全登出。",
+      statusMessage: "已安全登出。",
     })
   )
 }

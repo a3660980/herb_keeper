@@ -48,8 +48,6 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
   const params = await searchParams
   const query = getSingleSearchParam(params.q)?.trim() ?? ""
   const selectedType = getSingleSearchParam(params.type)?.trim() ?? ""
-  const status = getSingleSearchParam(params.status)
-  const error = getSingleSearchParam(params.error)
   const supabaseEnvReady = hasSupabaseEnv()
 
   let customers: CustomerRecord[] = []
@@ -108,9 +106,6 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
           </Button>
         }
       />
-
-      {status ? <FormMessage message={status} tone="success" /> : null}
-      {error ? <FormMessage message={error} tone="error" /> : null}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="border border-border/60 bg-card/85 shadow-sm backdrop-blur">

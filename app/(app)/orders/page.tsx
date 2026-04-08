@@ -81,8 +81,6 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   const params = await searchParams
   const query = getSingleSearchParam(params.q)?.trim() ?? ""
   const selectedStatus = getSingleSearchParam(params.status)?.trim() ?? ""
-  const statusMessage = getSingleSearchParam(params.statusMessage)
-  const error = getSingleSearchParam(params.error)
   const supabaseEnvReady = hasSupabaseEnv()
 
   let orders: TradeSummary[] = []
@@ -187,9 +185,6 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
           </div>
         }
       />
-
-      {statusMessage ? <FormMessage message={statusMessage} tone="success" /> : null}
-      {error ? <FormMessage message={error} tone="error" /> : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <Card className="border border-border/60 bg-card/85 shadow-sm backdrop-blur">

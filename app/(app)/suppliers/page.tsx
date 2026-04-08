@@ -33,8 +33,6 @@ type SuppliersPageProps = {
 export default async function SuppliersPage({ searchParams }: SuppliersPageProps) {
   const params = await searchParams
   const query = getSingleSearchParam(params.q)?.trim() ?? ""
-  const status = getSingleSearchParam(params.status)
-  const error = getSingleSearchParam(params.error)
   const supabaseEnvReady = hasSupabaseEnv()
 
   let suppliers: SupplierRecord[] = []
@@ -88,9 +86,6 @@ export default async function SuppliersPage({ searchParams }: SuppliersPageProps
           </div>
         }
       />
-
-      {status ? <FormMessage message={status} tone="success" /> : null}
-      {error ? <FormMessage message={error} tone="error" /> : null}
 
       <Card className="border border-border/60 bg-card/85 shadow-sm backdrop-blur">
         <CardHeader>

@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { setFlashError } from "@/lib/flash"
+
 import {
   createCustomerFormState,
   createQuickCustomerFormState,
@@ -75,7 +77,7 @@ export async function createCustomerAction(
   revalidatePath("/customers")
   redirect(
     withQueryString("/customers", {
-      status: `已建立客戶：${parsed.data.name}`,
+      statusMessage: `已建立客戶：${parsed.data.name}`,
     })
   )
 }
@@ -185,7 +187,7 @@ export async function updateCustomerAction(
   revalidatePath(`/customers/${customerId}/edit`)
   redirect(
     withQueryString("/customers", {
-      status: `已更新客戶：${parsed.data.name}`,
+      statusMessage: `已更新客戶：${parsed.data.name}`,
     })
   )
 }
@@ -195,11 +197,8 @@ export async function deleteCustomerAction(formData: FormData) {
   const customerName = String(formData.get("customerName") ?? "這位客戶")
 
   if (!customerId) {
-    redirect(
-      withQueryString("/customers", {
-        error: "缺少要刪除的客戶識別碼。",
-      })
-    )
+    await setFlashError("缺少要刪除的客戶識別碼。")
+    redirect("/customers")
   }
 
   let errorMessage = ""
@@ -216,17 +215,14 @@ export async function deleteCustomerAction(formData: FormData) {
   }
 
   if (errorMessage) {
-    redirect(
-      withQueryString("/customers", {
-        error: errorMessage,
-      })
-    )
+    await setFlashError(errorMessage)
+    redirect("/customers")
   }
 
   revalidatePath("/customers")
   redirect(
     withQueryString("/customers", {
-      status: `已刪除客戶：${customerName}`,
+      statusMessage: `已刪除客戶：${customerName}`,
     })
   )
 }

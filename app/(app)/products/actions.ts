@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { setFlashError } from "@/lib/flash"
+
 import {
   createProductFormState,
   getProductFieldErrors,
@@ -95,7 +97,7 @@ export async function createProductAction(
   revalidatePath("/products")
   redirect(
     withQueryString("/products", {
-      status: `已建立藥材：${parsed.data.name}`,
+      statusMessage: `已建立藥材：${parsed.data.name}`,
     })
   )
 }
@@ -144,7 +146,7 @@ export async function updateProductAction(
   revalidatePath(`/products/${productId}/edit`)
   redirect(
     withQueryString("/products", {
-      status: `已更新藥材：${parsed.data.name}`,
+      statusMessage: `已更新藥材：${parsed.data.name}`,
     })
   )
 }
@@ -203,11 +205,8 @@ export async function deleteProductAction(formData: FormData) {
   const productName = String(formData.get("productName") ?? "這筆藥材")
 
   if (!productId) {
-    redirect(
-      withQueryString("/products", {
-        error: "缺少要刪除的藥材識別碼。",
-      })
-    )
+    await setFlashError("缺少要刪除的藥材識別碼。")
+    redirect("/products")
   }
 
   let errorMessage = ""
@@ -245,17 +244,14 @@ export async function deleteProductAction(formData: FormData) {
   }
 
   if (errorMessage) {
-    redirect(
-      withQueryString("/products", {
-        error: errorMessage,
-      })
-    )
+    await setFlashError(errorMessage)
+    redirect("/products")
   }
 
   revalidatePath("/products")
   redirect(
     withQueryString("/products", {
-      status: `已刪除藥材：${productName}`,
+      statusMessage: `已刪除藥材：${productName}`,
     })
   )
 }

@@ -1,4 +1,3 @@
-import { FormMessage } from "@/components/app/form-message"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -7,19 +6,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { getSingleSearchParam } from "@/lib/url"
 
 import { LoginForm } from "./login-form"
 
-type LoginPageProps = {
-  searchParams: Promise<Record<string, string | string[] | undefined>>
-}
-
-export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const params = await searchParams
-  const status = getSingleSearchParam(params.status)
-  const error = getSingleSearchParam(params.error)
-
+export default function LoginPage() {
   return (
     <div className="mx-auto flex w-full max-w-[30rem] justify-center">
       <Card className="relative w-full overflow-hidden border border-border/80 bg-card/96 shadow-[0_30px_70px_-42px_rgba(15,23,42,0.18)] backdrop-blur-xl">
@@ -41,9 +31,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </CardHeader>
 
         <CardContent className="flex flex-col gap-5">
-          {status ? <FormMessage message={status} tone="success" /> : null}
-          {error ? <FormMessage message={error} tone="error" /> : null}
-
           <LoginForm />
         </CardContent>
       </Card>

@@ -190,8 +190,6 @@ export default async function InventoryDisposalsPage({
   const startDate = readDateParam(params.startDate)
   const endDate = readDateParam(params.endDate)
   const requestedPage = readPageParam(params.page)
-  const status = getSingleSearchParam(params.status)
-  const error = getSingleSearchParam(params.error)
   const supabaseEnvReady = hasSupabaseEnv()
   const dateRangeError =
     startDate && endDate && startDate > endDate
@@ -359,8 +357,6 @@ export default async function InventoryDisposalsPage({
         }
       />
 
-      {status ? <FormMessage message={status} tone="success" /> : null}
-      {error ? <FormMessage message={error} tone="error" /> : null}
       {dateRangeError ? <FormMessage message={dateRangeError} tone="error" /> : null}
 
       <div className="grid gap-4 md:grid-cols-4">

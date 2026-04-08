@@ -114,7 +114,7 @@ export async function createInventoryDisposalAction(
   redirect(
     withQueryString("/inventory/disposals", {
       productId: parsed.data.productId,
-      status: "已登錄庫存減損，庫存與減損歷史已同步更新。",
+      statusMessage: "已登錄庫存減損，庫存與減損歷史已同步更新。",
     })
   )
 }
