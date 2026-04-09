@@ -1,5 +1,5 @@
-import { TradeCreatePage } from "@/components/app/trade-create-page"
+import { redirect } from "next/navigation"
 
 export default async function NewDirectSalePage() {
-  return <TradeCreatePage mode="sale" />
+  redirect("/orders/new?type=sale")
 }

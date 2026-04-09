@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { setFlashError, setFlashSuccess } from "@/lib/flash"
+
 import { formatQuantity, toNumberValue } from "@/lib/format"
 import {
   createOrderFormState,
@@ -19,11 +21,14 @@ import {
   type OrderFormState,
   type ShipmentFormState,
 } from "@/lib/features/orders"
+import {
+  getUnexpectedServerActionErrorMessage,
+  normalizeServerActionErrorMessage,
+} from "@/lib/server-action-errors"
 import { createClient } from "@/lib/supabase/server"
-import { withQueryString } from "@/lib/url"
 
 function getUnexpectedErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "發生未預期錯誤，請稍後再試。"
+  return getUnexpectedServerActionErrorMessage(error)
 }
 
 function getOrderActionErrorMessage(error: { code?: string; message: string }) {
@@ -47,7 +52,7 @@ function getOrderActionErrorMessage(error: { code?: string; message: string }) {
     return "部分藥材不存在，請重新整理後再試。"
   }
 
-  return error.message || "建立訂單失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "建立訂單失敗，請稍後再試。")
 }
 
 function getUpdateOrderActionErrorMessage(error: { code?: string; message: string }) {
@@ -83,7 +88,7 @@ function getUpdateOrderActionErrorMessage(error: { code?: string; message: strin
     return "部分藥材不存在，請重新整理後再試。"
   }
 
-  return error.message || "修改訂單失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "修改訂單失敗，請稍後再試。")
 }
 
 function getCancelOrderActionErrorMessage(error: { code?: string; message: string }) {
@@ -103,7 +108,7 @@ function getCancelOrderActionErrorMessage(error: { code?: string; message: strin
     return "這張訂單已不存在，請返回列表後重新操作。"
   }
 
-  return error.message || "撤銷訂單失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "撤銷訂單失敗，請稍後再試。")
 }
 
 function getShipmentActionErrorMessage(error: { code?: string; message: string }) {
@@ -137,7 +142,7 @@ function getShipmentActionErrorMessage(error: { code?: string; message: string }
     return "部分訂單明細已不存在，請重新整理頁面。"
   }
 
-  return error.message || "建立出貨失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "建立出貨失敗，請稍後再試。")
 }
 
 export async function createOrderAction(
@@ -200,11 +205,8 @@ export async function createOrderAction(
   }
 
   revalidatePath("/orders")
-  redirect(
-    withQueryString(`/orders/${orderId}`, {
-      status: "已建立訂單，可直接安排出貨。",
-    })
-  )
+  await setFlashSuccess("已建立訂單，可直接安排出貨。")
+  redirect(`/orders/${orderId}`)
 }
 
 export async function updateOrderAction(
@@ -267,11 +269,8 @@ export async function updateOrderAction(
   revalidatePath("/orders")
   revalidatePath(`/orders/${orderId}`)
   revalidatePath(`/orders/${orderId}/edit`)
-  redirect(
-    withQueryString(`/orders/${orderId}`, {
-      status: "已更新訂單內容。",
-    })
-  )
+  await setFlashSuccess("已更新訂單內容。")
+  redirect(`/orders/${orderId}`)
 }
 
 export async function cancelOrderAction(orderId: string, redirectToList = false) {
@@ -293,11 +292,8 @@ export async function cancelOrderAction(orderId: string, redirectToList = false)
   }
 
   if (errorMessage) {
-    redirect(
-      redirectToList
-        ? withQueryString("/orders", { error: errorMessage })
-        : withQueryString(`/orders/${orderId}`, { error: errorMessage })
-    )
+    await setFlashError(errorMessage)
+    redirect(redirectToList ? "/orders" : `/orders/${orderId}`)
   }
 
   revalidatePath("/orders")
@@ -305,13 +301,10 @@ export async function cancelOrderAction(orderId: string, redirectToList = false)
   revalidatePath(`/orders/${orderId}/edit`)
   revalidatePath("/dashboard")
 
-  redirect(
-    redirectToList
-      ? withQueryString("/orders", { statusMessage: "已撤銷訂單。" })
-      : withQueryString(`/orders/${orderId}`, {
-          status: "已撤銷訂單，不能再修改或出貨。",
-        })
+  await setFlashSuccess(
+    redirectToList ? "已撤銷訂單。" : "已撤銷訂單，不能再修改或出貨。"
   )
+  redirect(redirectToList ? "/orders" : `/orders/${orderId}`)
 }
 
 export async function createShipmentAction(
@@ -465,9 +458,6 @@ export async function createShipmentAction(
   productIds.forEach((productId) => {
     revalidatePath(`/products/${productId}`)
   })
-  redirect(
-    `${withQueryString(`/orders/${orderId}`, {
-      status: "出貨完成，庫存與訂單狀態已同步更新。",
-    })}#shipment-form`
-  )
+  await setFlashSuccess("出貨完成，庫存與訂單狀態已同步更新。")
+  redirect(`/orders/${orderId}#shipment-form`)
 }

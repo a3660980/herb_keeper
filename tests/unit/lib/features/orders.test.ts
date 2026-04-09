@@ -251,6 +251,7 @@ describe("lib/features/orders", () => {
           availableStock: "100",
           unit: "g",
           shippedQuantity: "0",
+          finalUnitPrice: "0",
         },
       ],
     })
@@ -288,6 +289,7 @@ describe("lib/features/orders", () => {
           availableStock: "100",
           unit: "g",
           shippedQuantity: "0",
+          finalUnitPrice: "0",
         },
         {
           orderItemId: "44444444-4444-4444-4444-444444444444",
@@ -297,6 +299,7 @@ describe("lib/features/orders", () => {
           availableStock: "2",
           unit: "g",
           shippedQuantity: "0",
+          finalUnitPrice: "0",
         },
       ],
     })
@@ -315,6 +318,7 @@ describe("lib/features/orders", () => {
           availableStock: "100",
           unit: "g",
           shippedQuantity: "0",
+          finalUnitPrice: "0",
         },
       ])
     ).toBe(true)
@@ -329,6 +333,7 @@ describe("lib/features/orders", () => {
           availableStock: "1",
           unit: "g",
           shippedQuantity: "0",
+          finalUnitPrice: "",
         },
       ])
     ).toBe(false)
@@ -350,6 +355,7 @@ describe("lib/features/orders", () => {
             availableStock: "100",
             unit: "g",
             shippedQuantity: "1",
+            finalUnitPrice: "0",
           },
         ],
       })
@@ -369,6 +375,7 @@ describe("lib/features/orders", () => {
             availableStock: "100",
             unit: "g",
             shippedQuantity: "1",
+            finalUnitPrice: "0",
           },
         ],
       },
@@ -389,6 +396,7 @@ describe("lib/features/orders", () => {
           availableStock: "100",
           unit: "g",
           shippedQuantity: "",
+          finalUnitPrice: "0",
         },
       ],
     }
@@ -421,6 +429,7 @@ describe("lib/features/orders", () => {
           availableStock: "100",
           unit: "g",
           shippedQuantity: "1",
+          finalUnitPrice: "0",
         },
       ],
     }
@@ -450,6 +459,7 @@ describe("lib/features/orders", () => {
           availableStock: "100",
           unit: "g",
           shippedQuantity: "0",
+          finalUnitPrice: "0",
         },
       ],
     }

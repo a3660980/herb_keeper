@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { setFlashError, setFlashSuccess } from "@/lib/flash"
+
 import { createClient } from "@/lib/supabase/server"
-import { withQueryString } from "@/lib/url"
+import { normalizeServerActionErrorMessage } from "@/lib/server-action-errors"
 
 const REGISTRATION_DISABLED_MESSAGE = "註冊入口已停用，請由管理者在 Supabase 開通帳號。"
 
@@ -37,7 +39,7 @@ function getAuthErrorMessage(error: { message: string }) {
     return "登入失敗，帳號資料異常，請稍後再試或聯絡管理員。"
   }
 
-  return error.message || "驗證失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "驗證失敗，請稍後再試。")
 }
 
 export async function signInAction(formData: FormData) {
@@ -45,11 +47,8 @@ export async function signInAction(formData: FormData) {
   const password = String(formData.get("password") ?? "")
 
   if (!email || !password) {
-    redirect(
-      withQueryString("/auth/login", {
-        error: "請輸入電子郵件與密碼。",
-      })
-    )
+    await setFlashError("請輸入電子郵件與密碼。")
+    redirect("/auth/login")
   }
 
   const supabase = await createClient()
@@ -59,11 +58,8 @@ export async function signInAction(formData: FormData) {
   })
 
   if (error) {
-    redirect(
-      withQueryString("/auth/login", {
-        error: getAuthErrorMessage(error),
-      })
-    )
+    await setFlashError(getAuthErrorMessage(error))
+    redirect("/auth/login")
   }
 
   revalidatePath("/", "layout")
@@ -71,11 +67,8 @@ export async function signInAction(formData: FormData) {
 }
 
 export async function signUpAction() {
-  redirect(
-    withQueryString("/auth/login", {
-      error: REGISTRATION_DISABLED_MESSAGE,
-    })
-  )
+  await setFlashError(REGISTRATION_DISABLED_MESSAGE)
+  redirect("/auth/login")
 }
 
 export async function signOutAction() {
@@ -83,9 +76,6 @@ export async function signOutAction() {
   await supabase.auth.signOut()
 
   revalidatePath("/", "layout")
-  redirect(
-    withQueryString("/auth/login", {
-      status: "已安全登出。",
-    })
-  )
+  await setFlashSuccess("已安全登出。")
+  redirect("/auth/login")
 }

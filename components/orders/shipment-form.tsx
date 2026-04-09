@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { formatQuantity } from "@/lib/format"
+import { formatCurrency, formatQuantity } from "@/lib/format"
 import {
   canShipAllShipmentItems,
   fillShipmentFormWithAllRemaining,
@@ -140,6 +140,9 @@ export function ShipmentForm({
     (total, item) => total + item.numericShippedQuantity,
     0
   )
+  const totalShipmentAmount = values.items.reduce((sum, item) => {
+    return sum + Number(item.shippedQuantity || 0) * Number(item.finalUnitPrice || 0)
+  }, 0)
   const canShipAll = canShipAllShipmentItems(values.items)
 
   function handleShipAll() {
@@ -313,6 +316,16 @@ export function ShipmentForm({
             </div>
           )
         })}
+      </div>
+
+      <div className="rounded-[1.75rem] border border-primary/18 bg-primary/10 p-4 shadow-sm sm:p-5">
+        <div className="text-sm font-medium text-foreground">本次出貨總額</div>
+        <div className="mt-2 text-2xl font-semibold text-foreground">
+          {formatCurrency(totalShipmentAmount)}
+        </div>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          確認出貨後會立即更新庫存與訂單狀態。
+        </p>
       </div>
 
       <div className="flex flex-col gap-2 sm:items-end">

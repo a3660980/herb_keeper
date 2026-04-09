@@ -99,7 +99,7 @@ export default async function NewInboundPage({ searchParams }: NewInboundPagePro
               <Link href="/suppliers">供應商管理</Link>
             </Button>
             <Button asChild variant="outline">
-              <Link href="/products">返回藥材管理</Link>
+              <Link href="/products">返回藥材庫存管理</Link>
             </Button>
           </div>
         }

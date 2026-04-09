@@ -2,6 +2,7 @@ import Link from "next/link"
 
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
+import { QueryPagination } from "@/components/app/query-pagination"
 import { SubmitButton } from "@/components/app/submit-button"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -24,15 +25,18 @@ import {
   customerTypeOptions,
   type CustomerRecord,
 } from "@/lib/features/customers"
+import { paginateItems, readPageParam } from "@/lib/pagination"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
-import { getSingleSearchParam } from "@/lib/url"
+import { getSingleSearchParam, withQueryString } from "@/lib/url"
 
 import { deleteCustomerAction } from "./actions"
 
 type CustomersPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }
+
+const PAGE_SIZE = 20
 
 const customerTypeLabels: Record<(typeof customerTypeOptions)[number], string> = {
   general: "一般客",
@@ -48,8 +52,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
   const params = await searchParams
   const query = getSingleSearchParam(params.q)?.trim() ?? ""
   const selectedType = getSingleSearchParam(params.type)?.trim() ?? ""
-  const status = getSingleSearchParam(params.status)
-  const error = getSingleSearchParam(params.error)
+  const requestedPage = readPageParam(params.page)
   const supabaseEnvReady = hasSupabaseEnv()
 
   let customers: CustomerRecord[] = []
@@ -96,6 +99,13 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
   const wholesaleCount = customers.filter(
     (customer) => customer.type === "wholesale"
   ).length
+  const pagination = paginateItems(customers, requestedPage, PAGE_SIZE)
+  const buildPageHref = (page: number) =>
+    withQueryString("/customers", {
+      q: query || undefined,
+      type: selectedType || undefined,
+      page: page > 1 ? String(page) : undefined,
+    })
 
   return (
     <div className="space-y-6">
@@ -108,9 +118,6 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
           </Button>
         }
       />
-
-      {status ? <FormMessage message={status} tone="success" /> : null}
-      {error ? <FormMessage message={error} tone="error" /> : null}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="border border-border/60 bg-card/85 shadow-sm backdrop-blur">
@@ -182,55 +189,68 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
               </p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>客戶</TableHead>
-                  <TableHead>電話</TableHead>
-                  <TableHead>地址</TableHead>
-                  <TableHead>類型</TableHead>
-                  <TableHead>折扣倍率</TableHead>
-                  <TableHead>操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {customers.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell className="font-medium text-foreground">
-                      {customer.name}
-                    </TableCell>
-                    <TableCell>{customer.phone}</TableCell>
-                    <TableCell>{customer.address || "-"}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{customerTypeLabels[customer.type]}</Badge>
-                    </TableCell>
-                    <TableCell>{customer.discount_rate}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
-                        <Button asChild size="sm" variant="outline">
-                          <Link href={`/customers/${customer.id}/edit`}>編輯</Link>
-                        </Button>
-                        <form action={deleteCustomerAction}>
-                          <input type="hidden" name="customerId" value={customer.id} />
-                          <input
-                            type="hidden"
-                            name="customerName"
-                            value={customer.name}
-                          />
-                          <SubmitButton
-                            size="sm"
-                            variant="destructive"
-                            pendingLabel="刪除中..."
-                          >
-                            刪除
-                          </SubmitButton>
-                        </form>
-                      </div>
-                    </TableCell>
+            <div className="space-y-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>客戶</TableHead>
+                    <TableHead>電話</TableHead>
+                    <TableHead>地址</TableHead>
+                    <TableHead>類型</TableHead>
+                    <TableHead>折扣倍率</TableHead>
+                    <TableHead>操作</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {pagination.items.map((customer) => (
+                    <TableRow key={customer.id}>
+                      <TableCell className="font-medium text-foreground">
+                        {customer.name}
+                      </TableCell>
+                      <TableCell>{customer.phone}</TableCell>
+                      <TableCell>{customer.address || "-"}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{customerTypeLabels[customer.type]}</Badge>
+                      </TableCell>
+                      <TableCell>{customer.discount_rate}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-2">
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`/customers/${customer.id}/edit`}>編輯</Link>
+                          </Button>
+                          <form action={deleteCustomerAction}>
+                            <input type="hidden" name="customerId" value={customer.id} />
+                            <input
+                              type="hidden"
+                              name="customerName"
+                              value={customer.name}
+                            />
+                            <SubmitButton
+                              size="sm"
+                              variant="destructive"
+                              pendingLabel="刪除中..."
+                            >
+                              刪除
+                            </SubmitButton>
+                          </form>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              <QueryPagination
+                buildPageHref={buildPageHref}
+                currentPage={pagination.currentPage}
+                pageEnd={pagination.pageEnd}
+                pageSize={PAGE_SIZE}
+                pageStart={pagination.pageStart}
+                paginationItems={pagination.paginationItems}
+                totalItems={customers.length}
+                totalPages={pagination.totalPages}
+              />
+            </div>
           )}
         </CardContent>
       </Card>

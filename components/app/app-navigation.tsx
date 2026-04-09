@@ -180,7 +180,7 @@ export function AppNavigation() {
           </div>
         </div>
 
-        <div className={cn("mt-5 flex-1", collapsed && "w-full")}>
+        <div className={cn("mt-5 flex-1 min-h-0 sidebar-scrollbar overflow-y-auto", collapsed && "w-full")}>
           <NavigationList pathname={pathname} collapsed={collapsed} />
         </div>
 

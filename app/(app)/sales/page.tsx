@@ -1,7 +1,10 @@
 import Link from "next/link"
 
+import { cancelDirectSaleAction } from "./actions"
+import { CancelOrderButton } from "@/components/orders/cancel-order-button"
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
+import { QueryPagination } from "@/components/app/query-pagination"
 import { TradeModuleSwitch } from "@/components/app/trade-module-switch"
 import { Button } from "@/components/ui/button"
 import {
@@ -27,9 +30,10 @@ import {
   filterTradeSummaries,
   type TradeSummary,
 } from "@/lib/features/trades"
+import { paginateItems, readPageParam } from "@/lib/pagination"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
-import { getSingleSearchParam } from "@/lib/url"
+import { getSingleSearchParam, withQueryString } from "@/lib/url"
 
 type SalesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
@@ -53,11 +57,12 @@ type DirectSaleItemRow = {
   line_total: number | string
 }
 
+const PAGE_SIZE = 20
+
 export default async function SalesPage({ searchParams }: SalesPageProps) {
   const params = await searchParams
   const query = getSingleSearchParam(params.q)?.trim() ?? ""
-  const status = getSingleSearchParam(params.status)
-  const error = getSingleSearchParam(params.error)
+  const requestedPage = readPageParam(params.page)
   const supabaseEnvReady = hasSupabaseEnv()
 
   let sales: TradeSummary[] = []
@@ -125,6 +130,12 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
   const totalRevenue = sales.reduce((sum, sale) => sum + sale.totalAmount, 0)
   const totalQuantity = sales.reduce((sum, sale) => sum + sale.totalQuantity, 0)
   const customerCount = new Set(sales.map((sale) => sale.customerName)).size
+  const pagination = paginateItems(sales, requestedPage, PAGE_SIZE)
+  const buildPageHref = (page: number) =>
+    withQueryString("/sales", {
+      q: query || undefined,
+      page: page > 1 ? String(page) : undefined,
+    })
 
   return (
     <div className="space-y-6">
@@ -144,15 +155,12 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
 
             <div className="flex justify-end">
               <Button asChild size="sm">
-                <Link href="/sales/new">新增交易</Link>
+                <Link href="/orders/new?type=sale">新增交易</Link>
               </Button>
             </div>
           </div>
         }
       />
-
-      {status ? <FormMessage message={status} tone="success" /> : null}
-      {error ? <FormMessage message={error} tone="error" /> : null}
 
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="border border-border/60 bg-card/85 shadow-sm backdrop-blur">
@@ -211,44 +219,66 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
               {query ? "找不到符合條件的銷貨紀錄。" : "目前還沒有現場銷貨資料。"}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>銷貨單</TableHead>
-                  <TableHead>客戶</TableHead>
-                  <TableHead>明細數</TableHead>
-                  <TableHead>銷貨總量</TableHead>
-                  <TableHead>銷貨金額</TableHead>
-                  <TableHead>操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sales.map((sale) => (
-                  <TableRow key={sale.id}>
-                    <TableCell>
-                      <div className="font-medium text-foreground">
-                        {sale.id.slice(0, 8).toUpperCase()}
-                      </div>
-                      <div className="text-xs text-muted-foreground">{formatDateTime(sale.occurredAt)}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium text-foreground">{sale.customerName}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {sale.note || "無備註"}
-                      </div>
-                    </TableCell>
-                    <TableCell>{sale.itemCount}</TableCell>
-                    <TableCell>{formatQuantity(sale.totalQuantity)}</TableCell>
-                    <TableCell>{formatCurrency(sale.totalAmount)}</TableCell>
-                    <TableCell>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/sales/${sale.id}`}>查看</Link>
-                      </Button>
-                    </TableCell>
+            <div className="space-y-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>銷貨單</TableHead>
+                    <TableHead>客戶</TableHead>
+                    <TableHead>明細數</TableHead>
+                    <TableHead>銷貨總量</TableHead>
+                    <TableHead>銷貨金額</TableHead>
+                    <TableHead>操作</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {pagination.items.map((sale) => (
+                    <TableRow key={sale.id}>
+                      <TableCell>
+                        <div className="font-medium text-foreground">
+                          {sale.id.slice(0, 8).toUpperCase()}
+                        </div>
+                        <div className="text-xs text-muted-foreground">{formatDateTime(sale.occurredAt)}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium text-foreground">{sale.customerName}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {sale.note || "無備註"}
+                        </div>
+                      </TableCell>
+                      <TableCell>{sale.itemCount}</TableCell>
+                      <TableCell>{formatQuantity(sale.totalQuantity)}</TableCell>
+                      <TableCell>{formatCurrency(sale.totalAmount)}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-2">
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`/sales/${sale.id}`}>查看</Link>
+                          </Button>
+                          <CancelOrderButton
+                            action={cancelDirectSaleAction.bind(null, sale.id, true)}
+                            size="sm"
+                            label="撤銷"
+                            dialogTitle="確認撤銷銷貨"
+                            dialogDescription="撤銷後此筆銷貨紀錄將被刪除，庫存數量會自動回復。確定要撤銷嗎？"
+                          />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              <QueryPagination
+                buildPageHref={buildPageHref}
+                currentPage={pagination.currentPage}
+                pageEnd={pagination.pageEnd}
+                pageSize={PAGE_SIZE}
+                pageStart={pagination.pageStart}
+                paginationItems={pagination.paginationItems}
+                totalItems={sales.length}
+                totalPages={pagination.totalPages}
+              />
+            </div>
           )}
         </CardContent>
       </Card>

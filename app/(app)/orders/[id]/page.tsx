@@ -31,13 +31,12 @@ import {
 } from "@/lib/features/orders"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
-import { getSingleSearchParam } from "@/lib/url"
 
 import { cancelOrderAction, createShipmentAction } from "../actions"
+import { CancelOrderButton } from "@/components/orders/cancel-order-button"
 
 type OrderPageProps = {
   params: Promise<{ id: string }>
-  searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
 type OrderRow = {
@@ -102,12 +101,8 @@ function getStatusVariant(status: OrderStatus) {
 
 export default async function OrderDetailPage({
   params,
-  searchParams,
 }: OrderPageProps) {
   const { id } = await params
-  const query = await searchParams
-  const status = getSingleSearchParam(query.status)
-  const error = getSingleSearchParam(query.error)
   const supabaseEnvReady = hasSupabaseEnv()
 
   if (!supabaseEnvReady) {
@@ -243,6 +238,7 @@ export default async function OrderDetailPage({
     availableStock: String(item.availableStock),
     unit: item.unit,
     shippedQuantity: "0",
+    finalUnitPrice: String(item.finalUnitPrice),
   }))
   const boundShipmentAction = createShipmentAction.bind(null, id)
   const itemMap = new Map(items.map((item) => [item.orderItemId, item]))
@@ -266,11 +262,7 @@ export default async function OrderDetailPage({
               </Button>
             ) : null}
             {canCancelOrder ? (
-              <form action={boundCancelAction}>
-                <Button type="submit" variant="destructive">
-                  撤銷訂單
-                </Button>
-              </form>
+              <CancelOrderButton action={boundCancelAction} />
             ) : null}
             <Button asChild>
               <Link href="/orders/new">新增交易</Link>
@@ -279,8 +271,6 @@ export default async function OrderDetailPage({
         }
       />
 
-      {status ? <FormMessage message={status} tone="success" /> : null}
-      {error ? <FormMessage message={error} tone="error" /> : null}
       {loadError ? <FormMessage message={loadError} tone="error" /> : null}
 
       <div className="grid gap-4 md:grid-cols-4">

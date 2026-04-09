@@ -52,9 +52,9 @@ test("operator can complete the core customer, product, order, shipment, and sal
       await orderLine.getByLabel("訂單明細 1 訂購數量").fill("2")
       await orderLine.getByLabel("訂單明細 1 成交單價").fill("52")
       await page.getByLabel("備註").fill("Playwright 訂單流程驗證")
-      await page.getByRole("button", { name: "建立訂單" }).click()
+      await page.getByRole("button", { name: "建立訂單", exact: true }).click()
 
-      await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+\?status=/)
+      await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+(?:\?.*)?$/)
       await expect(page.getByText("已建立訂單，可直接安排出貨。")).toBeVisible()
       await expect(page.locator("#shipmentDate")).toHaveValue(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/)
 
@@ -70,7 +70,8 @@ test("operator can complete the core customer, product, order, shipment, and sal
       await expect(page.getByText("出貨完成，庫存與訂單狀態已同步更新。")).toBeVisible()
       await expect(page.getByText("部分出貨").first()).toBeVisible()
 
-      await page.goto("/sales/new")
+      await page.goto("/orders/new")
+      await page.getByTestId("trade-type-sale").click()
       await selectSearchableOption(page, {
         trigger: page.locator("#customerId"),
         searchPlaceholder: "搜尋客戶名稱或電話",
@@ -89,13 +90,13 @@ test("operator can complete the core customer, product, order, shipment, and sal
       await saleLine.getByLabel("銷貨明細 1 銷貨數量").fill("1")
       await saleLine.getByLabel("銷貨明細 1 成交單價").fill("52")
       await page.getByLabel("備註").fill("Playwright 現場銷貨驗證")
-      await page.getByRole("button", { name: "建立現場銷貨" }).click()
+      await page.getByRole("button", { name: "建立現場銷貨", exact: true }).click()
 
-      await expect(page).toHaveURL(/\/sales\/[0-9a-f-]+\?status=/)
+      await expect(page).toHaveURL(/\/sales\/[0-9a-f-]+(?:\?.*)?$/)
       await expect(page.getByText("已建立現場銷貨，庫存與報表資料已同步更新。")).toBeVisible()
       await expect(page.getByText(customerName).first()).toBeVisible()
 
-      await page.goto(`/inventory?q=${encodeURIComponent(productName)}&filter=low`)
+      await page.goto(`/products?q=${encodeURIComponent(productName)}&filter=low`)
       const inventoryRow = page.getByRole("row", { name: new RegExp(productName) })
       await expect(inventoryRow).toBeVisible()
       await expect(inventoryRow.getByText("低庫存", { exact: true })).toBeVisible()

@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { setFlashError, setFlashSuccess } from "@/lib/flash"
+
 import {
   createProductFormState,
   getProductFieldErrors,
@@ -19,15 +21,18 @@ import {
   readProductUnitFormValues,
   type ProductUnitFormState,
 } from "@/lib/features/product-units"
+import {
+  getUnexpectedServerActionErrorMessage,
+  normalizeServerActionErrorMessage,
+} from "@/lib/server-action-errors"
 import { createClient } from "@/lib/supabase/server"
-import { withQueryString } from "@/lib/url"
 
 function getProductErrorMessage(error: { code?: string; message: string }, name: string) {
   if (error.code === "23505") {
     return `藥材「${name}」已存在，請改用其他名稱。`
   }
 
-  return error.message || "藥材資料寫入失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "藥材資料寫入失敗，請稍後再試。")
 }
 
 function getDeleteProductErrorMessage(error: { code?: string; message: string }, name: string) {
@@ -35,11 +40,14 @@ function getDeleteProductErrorMessage(error: { code?: string; message: string },
     return `藥材「${name}」已有進貨、減損或交易履歷，為了保留歷史資料，不能直接刪除。`
   }
 
-  return error.message || `刪除藥材「${name}」失敗，請稍後再試。`
+  return normalizeServerActionErrorMessage(
+    error.message,
+    `刪除藥材「${name}」失敗，請稍後再試。`
+  )
 }
 
 function getUnexpectedErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "發生未預期錯誤，請稍後再試。"
+  return getUnexpectedServerActionErrorMessage(error)
 }
 
 function getProductUnitErrorMessage(error: { code?: string; message: string }, name: string) {
@@ -47,7 +55,7 @@ function getProductUnitErrorMessage(error: { code?: string; message: string }, n
     return `單位「${name}」已存在。`
   }
 
-  return error.message || "新增單位失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "新增單位失敗，請稍後再試。")
 }
 
 export async function createProductAction(
@@ -86,11 +94,8 @@ export async function createProductAction(
   }
 
   revalidatePath("/products")
-  redirect(
-    withQueryString("/products", {
-      status: `已建立藥材：${parsed.data.name}`,
-    })
-  )
+  await setFlashSuccess(`已建立藥材：${parsed.data.name}`)
+  redirect("/products")
 }
 
 export async function updateProductAction(
@@ -135,11 +140,8 @@ export async function updateProductAction(
   revalidatePath("/products")
   revalidatePath(`/products/${productId}`)
   revalidatePath(`/products/${productId}/edit`)
-  redirect(
-    withQueryString("/products", {
-      status: `已更新藥材：${parsed.data.name}`,
-    })
-  )
+  await setFlashSuccess(`已更新藥材：${parsed.data.name}`)
+  redirect("/products")
 }
 
 export async function createProductUnitAction(
@@ -196,11 +198,8 @@ export async function deleteProductAction(formData: FormData) {
   const productName = String(formData.get("productName") ?? "這筆藥材")
 
   if (!productId) {
-    redirect(
-      withQueryString("/products", {
-        error: "缺少要刪除的藥材識別碼。",
-      })
-    )
+    await setFlashError("缺少要刪除的藥材識別碼。")
+    redirect("/products")
   }
 
   let errorMessage = ""
@@ -238,17 +237,11 @@ export async function deleteProductAction(formData: FormData) {
   }
 
   if (errorMessage) {
-    redirect(
-      withQueryString("/products", {
-        error: errorMessage,
-      })
-    )
+    await setFlashError(errorMessage)
+    redirect("/products")
   }
 
   revalidatePath("/products")
-  redirect(
-    withQueryString("/products", {
-      status: `已刪除藥材：${productName}`,
-    })
-  )
+  await setFlashSuccess(`已刪除藥材：${productName}`)
+  redirect("/products")
 }

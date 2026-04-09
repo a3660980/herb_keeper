@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { setFlashSuccess } from "@/lib/flash"
 import {
   calculateInboundUnitCost,
   createInboundFormState,
@@ -13,11 +14,14 @@ import {
   readInboundFormSubmission,
   type InboundFormState,
 } from "@/lib/features/inbounds"
+import {
+  getUnexpectedServerActionErrorMessage,
+  normalizeServerActionErrorMessage,
+} from "@/lib/server-action-errors"
 import { createClient } from "@/lib/supabase/server"
-import { withQueryString } from "@/lib/url"
 
 function getUnexpectedErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "發生未預期錯誤，請稍後再試。"
+  return getUnexpectedServerActionErrorMessage(error)
 }
 
 function getInboundActionErrorMessage(error: { code?: string; message: string }) {
@@ -45,7 +49,7 @@ function getInboundActionErrorMessage(error: { code?: string; message: string })
     return "進貨單價不可小於 0。"
   }
 
-  return error.message || "新增進貨失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "新增進貨失敗，請稍後再試。")
 }
 
 export async function createInboundAction(
@@ -118,10 +122,7 @@ export async function createInboundAction(
   revalidatePath("/products")
   revalidatePath(`/products/${parsed.data.productId}`)
   revalidatePath("/products/inbounds")
-  revalidatePath("/inventory")
-  redirect(
-    withQueryString("/products/inbounds", {
-      status: "已登錄進貨，庫存、平均成本與進貨歷史已同步更新。",
-    })
-  )
+  revalidatePath("/products/disposals")
+  await setFlashSuccess("已登錄進貨，庫存、平均成本與進貨歷史已同步更新。")
+  redirect("/products/inbounds")
 }

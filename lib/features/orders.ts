@@ -50,6 +50,7 @@ export type ShipmentLineFormValues = {
   availableStock: string
   unit: string
   shippedQuantity: string
+  finalUnitPrice: string
 }
 
 export type ShipmentFormValues = {
@@ -407,6 +408,7 @@ export function createShipmentLineFormValue(
     availableStock: toStringNumber(values.availableStock),
     unit: toStringValue(values.unit, "g"),
     shippedQuantity: toStringNumber(values.shippedQuantity),
+    finalUnitPrice: toStringNumber(values.finalUnitPrice),
   }
 }
 

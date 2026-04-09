@@ -48,15 +48,20 @@ test("operator can cancel a pending order before any shipment", async ({ page })
       await orderLine.getByLabel("訂單明細 1 訂購數量").fill("2")
       await orderLine.getByLabel("訂單明細 1 成交單價").fill("52")
       await page.getByLabel("備註").fill(orderNote)
-      await page.getByRole("button", { name: "建立訂單" }).click()
+      await page.getByRole("button", { name: "建立訂單", exact: true }).click()
 
-      await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+\?status=/)
+      await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+(?:\?.*)?$/)
       await expect(page.getByText("已建立訂單，可直接安排出貨。")).toBeVisible()
       await expect(page.getByRole("button", { name: "撤銷訂單" })).toBeVisible()
 
       await page.getByRole("button", { name: "撤銷訂單" }).click()
+      await expect(page.getByRole("heading", { name: "確認撤銷訂單" })).toBeVisible()
+      await expect(
+        page.getByText("撤銷後訂單將無法再修改或出貨，確定要撤銷嗎？")
+      ).toBeVisible()
+      await page.getByRole("button", { name: "確認撤銷" }).click()
 
-      await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+\?status=/)
+      await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+(?:\?.*)?$/)
       await expect(page.getByText("已撤銷訂單，不能再修改或出貨。")).toBeVisible()
       await expect(page.getByText("這張訂單已撤銷，不可再建立 shipment。")).toBeVisible()
       await expect(page.getByRole("link", { name: "修改訂單" })).toHaveCount(0)

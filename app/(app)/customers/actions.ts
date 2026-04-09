@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { setFlashError, setFlashSuccess } from "@/lib/flash"
+
 import {
   createCustomerFormState,
   createQuickCustomerFormState,
@@ -13,8 +15,11 @@ import {
   type CustomerFormState,
   type QuickCreateCustomerFormState,
 } from "@/lib/features/customers"
+import {
+  getUnexpectedServerActionErrorMessage,
+  normalizeServerActionErrorMessage,
+} from "@/lib/server-action-errors"
 import { createClient } from "@/lib/supabase/server"
-import { withQueryString } from "@/lib/url"
 
 function getCustomerErrorMessage(error: { code?: string; message: string }, name: string) {
   if (error.code === "23503") {
@@ -25,11 +30,11 @@ function getCustomerErrorMessage(error: { code?: string; message: string }, name
     return `客戶「${name}」的欄位格式不符合資料表限制。`
   }
 
-  return error.message || "客戶資料寫入失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "客戶資料寫入失敗，請稍後再試。")
 }
 
 function getUnexpectedErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "發生未預期錯誤，請稍後再試。"
+  return getUnexpectedServerActionErrorMessage(error)
 }
 
 export async function createCustomerAction(
@@ -69,11 +74,8 @@ export async function createCustomerAction(
   }
 
   revalidatePath("/customers")
-  redirect(
-    withQueryString("/customers", {
-      status: `已建立客戶：${parsed.data.name}`,
-    })
-  )
+  await setFlashSuccess(`已建立客戶：${parsed.data.name}`)
+  redirect("/customers")
 }
 
 export async function createCustomerQuickAction(
@@ -179,11 +181,8 @@ export async function updateCustomerAction(
 
   revalidatePath("/customers")
   revalidatePath(`/customers/${customerId}/edit`)
-  redirect(
-    withQueryString("/customers", {
-      status: `已更新客戶：${parsed.data.name}`,
-    })
-  )
+  await setFlashSuccess(`已更新客戶：${parsed.data.name}`)
+  redirect("/customers")
 }
 
 export async function deleteCustomerAction(formData: FormData) {
@@ -191,36 +190,29 @@ export async function deleteCustomerAction(formData: FormData) {
   const customerName = String(formData.get("customerName") ?? "這位客戶")
 
   if (!customerId) {
-    redirect(
-      withQueryString("/customers", {
-        error: "缺少要刪除的客戶識別碼。",
-      })
-    )
+    await setFlashError("缺少要刪除的客戶識別碼。")
+    redirect("/customers")
   }
+
+  let errorMessage = ""
 
   try {
     const supabase = await createClient()
     const { error } = await supabase.from("customers").delete().eq("id", customerId)
 
     if (error) {
-      redirect(
-        withQueryString("/customers", {
-          error: getCustomerErrorMessage(error, customerName),
-        })
-      )
+      errorMessage = getCustomerErrorMessage(error, customerName)
     }
   } catch (error) {
-    redirect(
-      withQueryString("/customers", {
-        error: getUnexpectedErrorMessage(error),
-      })
-    )
+    errorMessage = getUnexpectedErrorMessage(error)
+  }
+
+  if (errorMessage) {
+    await setFlashError(errorMessage)
+    redirect("/customers")
   }
 
   revalidatePath("/customers")
-  redirect(
-    withQueryString("/customers", {
-      status: `已刪除客戶：${customerName}`,
-    })
-  )
+  await setFlashSuccess(`已刪除客戶：${customerName}`)
+  redirect("/customers")
 }

@@ -272,8 +272,6 @@ export default async function ProductDetailPage({
 }: ProductDetailPageProps) {
   const { id } = await params
   const query = await searchParams
-  const status = getSingleSearchParam(query.status)
-  const error = getSingleSearchParam(query.error)
   const selectedSupplierId = readUuidParam(query.supplierId)
   const startDate = readDateParam(query.startDate)
   const endDate = readDateParam(query.endDate)
@@ -540,7 +538,7 @@ export default async function ProductDetailPage({
             </Button>
             {ledgerStock > 0 ? (
               <Button asChild variant="outline">
-                <Link href={withQueryString("/inventory/disposals/new", { productId: id })}>
+                <Link href={withQueryString("/products/disposals/new", { productId: id })}>
                   新增減損
                 </Link>
               </Button>
@@ -549,14 +547,12 @@ export default async function ProductDetailPage({
               <Link href={`/products/${id}/edit`}>編輯藥材</Link>
             </Button>
             <Button asChild variant="outline">
-              <Link href="/products">返回藥材管理</Link>
+              <Link href="/products">返回藥材庫存管理</Link>
             </Button>
           </div>
         }
       />
 
-      {status ? <FormMessage message={status} tone="success" /> : null}
-      {error ? <FormMessage message={error} tone="error" /> : null}
       {loadError ? <FormMessage message={loadError} tone="error" /> : null}
       {dateRangeError ? <FormMessage message={dateRangeError} tone="error" /> : null}
 
@@ -801,7 +797,7 @@ export default async function ProductDetailPage({
               <CardAction>
                 <Button asChild size="sm" variant="outline">
                   <Link
-                    href={withQueryString("/inventory/disposals", {
+                    href={withQueryString("/products/disposals", {
                       productId: id,
                       startDate: startDate || undefined,
                       endDate: endDate || undefined,

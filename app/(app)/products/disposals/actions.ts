@@ -106,11 +106,10 @@ export async function createInventoryDisposalAction(
   }
 
   revalidatePath("/dashboard")
-  revalidatePath("/inventory")
-  revalidatePath("/inventory/disposals")
   revalidatePath("/products")
+  revalidatePath("/products/disposals")
   revalidatePath(`/products/${parsed.data.productId}`)
 
   await setFlashSuccess("已登錄庫存減損，庫存與減損歷史已同步更新。")
-  redirect(`/inventory/disposals?productId=${parsed.data.productId}`)
+  redirect(`/products/disposals?productId=${parsed.data.productId}`)
 }

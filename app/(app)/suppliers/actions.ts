@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { setFlashError, setFlashSuccess } from "@/lib/flash"
+
 import {
   createSupplierFormState,
   createQuickSupplierFormState,
@@ -13,8 +15,11 @@ import {
   type SupplierFormState,
   type QuickCreateSupplierFormState,
 } from "@/lib/features/suppliers"
+import {
+  getUnexpectedServerActionErrorMessage,
+  normalizeServerActionErrorMessage,
+} from "@/lib/server-action-errors"
 import { createClient } from "@/lib/supabase/server"
-import { withQueryString } from "@/lib/url"
 
 function getSupplierErrorMessage(error: { code?: string; message: string }, name: string) {
   if (error.code === "23505") {
@@ -25,11 +30,11 @@ function getSupplierErrorMessage(error: { code?: string; message: string }, name
     return "這個供應商已經被進貨資料引用，無法刪除。"
   }
 
-  return error.message || "供應商資料寫入失敗，請稍後再試。"
+  return normalizeServerActionErrorMessage(error.message, "供應商資料寫入失敗，請稍後再試。")
 }
 
 function getUnexpectedErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "發生未預期錯誤，請稍後再試。"
+  return getUnexpectedServerActionErrorMessage(error)
 }
 
 export async function createSupplierAction(
@@ -68,11 +73,8 @@ export async function createSupplierAction(
 
   revalidatePath("/suppliers")
   revalidatePath("/products/inbounds/new")
-  redirect(
-    withQueryString("/suppliers", {
-      status: `已建立供應商：${parsed.data.name}`,
-    })
-  )
+  await setFlashSuccess(`已建立供應商：${parsed.data.name}`)
+  redirect("/suppliers")
 }
 
 export async function createSupplierQuickAction(
@@ -171,11 +173,8 @@ export async function updateSupplierAction(
   revalidatePath("/suppliers")
   revalidatePath(`/suppliers/${supplierId}/edit`)
   revalidatePath("/products/inbounds/new")
-  redirect(
-    withQueryString("/suppliers", {
-      status: `已更新供應商：${parsed.data.name}`,
-    })
-  )
+  await setFlashSuccess(`已更新供應商：${parsed.data.name}`)
+  redirect("/suppliers")
 }
 
 export async function deleteSupplierAction(formData: FormData) {
@@ -183,37 +182,30 @@ export async function deleteSupplierAction(formData: FormData) {
   const supplierName = String(formData.get("supplierName") ?? "這個供應商")
 
   if (!supplierId) {
-    redirect(
-      withQueryString("/suppliers", {
-        error: "缺少要刪除的供應商識別碼。",
-      })
-    )
+    await setFlashError("缺少要刪除的供應商識別碼。")
+    redirect("/suppliers")
   }
+
+  let errorMessage = ""
 
   try {
     const supabase = await createClient()
     const { error } = await supabase.from("suppliers").delete().eq("id", supplierId)
 
     if (error) {
-      redirect(
-        withQueryString("/suppliers", {
-          error: getSupplierErrorMessage(error, supplierName),
-        })
-      )
+      errorMessage = getSupplierErrorMessage(error, supplierName)
     }
   } catch (error) {
-    redirect(
-      withQueryString("/suppliers", {
-        error: getUnexpectedErrorMessage(error),
-      })
-    )
+    errorMessage = getUnexpectedErrorMessage(error)
+  }
+
+  if (errorMessage) {
+    await setFlashError(errorMessage)
+    redirect("/suppliers")
   }
 
   revalidatePath("/suppliers")
   revalidatePath("/products/inbounds/new")
-  redirect(
-    withQueryString("/suppliers", {
-      status: `已刪除供應商：${supplierName}`,
-    })
-  )
+  await setFlashSuccess(`已刪除供應商：${supplierName}`)
+  redirect("/suppliers")
 }

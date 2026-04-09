@@ -49,9 +49,9 @@ test("operator can edit a pending order after creation", async ({ page }) => {
       await createOrderLine.getByLabel("訂單明細 1 訂購數量").fill("2")
       await createOrderLine.getByLabel("訂單明細 1 成交單價").fill("52")
       await page.getByLabel("備註").fill(initialNote)
-      await page.getByRole("button", { name: "建立訂單" }).click()
+      await page.getByRole("button", { name: "建立訂單", exact: true }).click()
 
-      await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+\?status=/)
+      await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+(?:\?.*)?$/)
       await expect(page.getByText("已建立訂單，可直接安排出貨。")).toBeVisible()
       await expect(page.getByText(initialNote)).toBeVisible()
 
@@ -64,7 +64,7 @@ test("operator can edit a pending order after creation", async ({ page }) => {
       await page.getByLabel("備註").fill(updatedNote)
       await page.getByRole("button", { name: "儲存變更" }).click()
 
-      await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+\?status=/)
+      await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+(?:\?.*)?$/)
       await expect(page.getByText("已更新訂單內容。")).toBeVisible()
       await expect(page.getByText(updatedNote)).toBeVisible()
 

@@ -1,6 +1,8 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
+import { cancelDirectSaleAction } from "../actions"
+import { CancelOrderButton } from "@/components/orders/cancel-order-button"
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
 import { Badge } from "@/components/ui/badge"
@@ -23,11 +25,9 @@ import {
 import { formatCurrency, formatQuantity, toNumberValue } from "@/lib/format"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
-import { getSingleSearchParam } from "@/lib/url"
 
 type DirectSalePageProps = {
   params: Promise<{ id: string }>
-  searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
 type DirectSaleRow = {
@@ -80,12 +80,8 @@ type TransactionHistoryRow = {
 
 export default async function DirectSaleDetailPage({
   params,
-  searchParams,
 }: DirectSalePageProps) {
   const { id } = await params
-  const query = await searchParams
-  const status = getSingleSearchParam(query.status)
-  const error = getSingleSearchParam(query.error)
   const supabaseEnvReady = hasSupabaseEnv()
 
   if (!supabaseEnvReady) {
@@ -180,15 +176,19 @@ export default async function DirectSaleDetailPage({
             <Button asChild variant="outline">
               <Link href="/sales">返回銷貨列表</Link>
             </Button>
+            <CancelOrderButton
+              action={cancelDirectSaleAction.bind(null, id, false)}
+              label="撤銷銷貨"
+              dialogTitle="確認撤銷銷貨"
+              dialogDescription="撤銷後此筆銷貨紀錄將被刪除，庫存數量會自動回復。確定要撤銷嗎？"
+            />
             <Button asChild>
-              <Link href="/sales/new">新增交易</Link>
+              <Link href="/orders/new?type=sale">新增交易</Link>
             </Button>
           </div>
         }
       />
 
-      {status ? <FormMessage message={status} tone="success" /> : null}
-      {error ? <FormMessage message={error} tone="error" /> : null}
       {loadError ? <FormMessage message={loadError} tone="error" /> : null}
 
       <div className="grid gap-4 md:grid-cols-4">

@@ -2,6 +2,7 @@ import Link from "next/link"
 
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
+import { QueryPagination } from "@/components/app/query-pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -21,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { formatCurrency, formatDateTime, formatQuantity, toNumberValue } from "@/lib/format"
+import { getPaginationState, readPageParam } from "@/lib/pagination"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
 import { getSingleSearchParam, withQueryString } from "@/lib/url"
@@ -144,29 +146,6 @@ function isInboundWithinDateRange(value: string, startDate: string, endDate: str
   return true
 }
 
-function readPageParam(value: string | string[] | undefined) {
-  const normalizedValue = getSingleSearchParam(value)?.trim() ?? ""
-  const page = Number.parseInt(normalizedValue, 10)
-
-  return Number.isFinite(page) && page > 0 ? page : 1
-}
-
-function getPaginationItems(totalPages: number, currentPage: number) {
-  if (totalPages <= 7) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1)
-  }
-
-  if (currentPage <= 3) {
-    return [1, 2, 3, 4, "ellipsis", totalPages] as const
-  }
-
-  if (currentPage >= totalPages - 2) {
-    return [1, "ellipsis", totalPages - 3, totalPages - 2, totalPages - 1, totalPages] as const
-  }
-
-  return [1, "ellipsis", currentPage - 1, currentPage, currentPage + 1, "ellipsis", totalPages] as const
-}
-
 export default async function InboundHistoryPage({ searchParams }: InboundHistoryPageProps) {
   const params = await searchParams
   const rawQuery = getSingleSearchParam(params.q)?.trim() ?? ""
@@ -176,8 +155,6 @@ export default async function InboundHistoryPage({ searchParams }: InboundHistor
   const startDate = readDateParam(params.startDate)
   const endDate = readDateParam(params.endDate)
   const requestedPage = readPageParam(params.page)
-  const status = getSingleSearchParam(params.status)
-  const error = getSingleSearchParam(params.error)
   const supabaseEnvReady = hasSupabaseEnv()
   const dateRangeError =
     startDate && endDate && startDate > endDate
@@ -271,13 +248,9 @@ export default async function InboundHistoryPage({ searchParams }: InboundHistor
     })
   }
 
-  const totalPages = Math.max(1, Math.ceil(inboundRows.length / PAGE_SIZE))
-  const currentPage = inboundRows.length === 0 ? 1 : Math.min(requestedPage, totalPages)
-  const pageStartIndex = (currentPage - 1) * PAGE_SIZE
+  const pagination = getPaginationState(inboundRows.length, requestedPage, PAGE_SIZE)
+  const pageStartIndex = pagination.pageStartIndex
   const paginatedRows = inboundRows.slice(pageStartIndex, pageStartIndex + PAGE_SIZE)
-  const pageStart = inboundRows.length === 0 ? 0 : pageStartIndex + 1
-  const pageEnd = inboundRows.length === 0 ? 0 : Math.min(pageStartIndex + PAGE_SIZE, inboundRows.length)
-  const paginationItems = inboundRows.length === 0 ? [] : getPaginationItems(totalPages, currentPage)
   const totalAmount = inboundRows.reduce((sum, row) => {
     return sum + toNumberValue(row.quantity) * toNumberValue(row.unitCost)
   }, 0)
@@ -344,14 +317,12 @@ export default async function InboundHistoryPage({ searchParams }: InboundHistor
               </Button>
             ) : null}
             <Button asChild variant="outline">
-              <Link href="/products">返回藥材管理</Link>
+              <Link href="/products">返回藥材庫存管理</Link>
             </Button>
           </div>
         }
       />
 
-      {status ? <FormMessage message={status} tone="success" /> : null}
-      {error ? <FormMessage message={error} tone="error" /> : null}
       {dateRangeError ? <FormMessage message={dateRangeError} tone="error" /> : null}
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -508,59 +479,16 @@ export default async function InboundHistoryPage({ searchParams }: InboundHistor
                 </TableBody>
               </Table>
 
-              <div className="flex flex-col gap-3 border-t border-border/60 pt-4 md:flex-row md:items-center md:justify-between">
-                <p className="text-sm text-muted-foreground">
-                  顯示第 {pageStart} 至 {pageEnd} 筆，共 {inboundRows.length} 筆，每頁 {PAGE_SIZE} 筆。
-                </p>
-
-                {totalPages > 1 ? (
-                  <div className="flex flex-wrap items-center gap-2">
-                    {currentPage > 1 ? (
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={buildPageHref(currentPage - 1)}>上一頁</Link>
-                      </Button>
-                    ) : (
-                      <Button size="sm" variant="outline" disabled>
-                        上一頁
-                      </Button>
-                    )}
-
-                    {paginationItems.map((item, index) => {
-                      if (item === "ellipsis") {
-                        return (
-                          <span key={`ellipsis-${index}`} className="px-1 text-sm text-muted-foreground">
-                            …
-                          </span>
-                        )
-                      }
-
-                      if (item === currentPage) {
-                        return (
-                          <Button key={item} size="sm" variant="secondary" disabled aria-current="page">
-                            {item}
-                          </Button>
-                        )
-                      }
-
-                      return (
-                        <Button key={item} asChild size="sm" variant="outline">
-                          <Link href={buildPageHref(item)}>{item}</Link>
-                        </Button>
-                      )
-                    })}
-
-                    {currentPage < totalPages ? (
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={buildPageHref(currentPage + 1)}>下一頁</Link>
-                      </Button>
-                    ) : (
-                      <Button size="sm" variant="outline" disabled>
-                        下一頁
-                      </Button>
-                    )}
-                  </div>
-                ) : null}
-              </div>
+              <QueryPagination
+                buildPageHref={buildPageHref}
+                currentPage={pagination.currentPage}
+                pageEnd={pagination.pageEnd}
+                pageSize={PAGE_SIZE}
+                pageStart={pagination.pageStart}
+                paginationItems={pagination.paginationItems}
+                totalItems={inboundRows.length}
+                totalPages={pagination.totalPages}
+              />
             </div>
           )}
         </CardContent>

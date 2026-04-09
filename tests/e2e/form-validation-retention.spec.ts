@@ -37,7 +37,7 @@ test("order, shipment, and sale forms retain business selections after validatio
         query: "黃耆",
         optionName: "黃耆",
       })
-      await page.getByRole("button", { name: "建立訂單" }).click()
+      await page.getByRole("button", { name: "建立訂單", exact: true }).click()
 
       await expect(page.getByText("請修正訂單欄位後再送出。")).toBeVisible()
       await expect(page.getByText("請輸入數量")).toBeVisible()
@@ -49,9 +49,9 @@ test("order, shipment, and sale forms retain business selections after validatio
 
       await orderLine.getByLabel("訂單明細 1 訂購數量").fill("2")
       await orderLine.getByLabel("訂單明細 1 成交單價").fill("52")
-      await page.getByRole("button", { name: "建立訂單" }).click()
+      await page.getByRole("button", { name: "建立訂單", exact: true }).click()
 
-      await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+\?status=/)
+      await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+(?:\?.*)?$/)
       const shipmentLine = page.getByTestId("shipment-line").first()
       await shipmentLine.getByLabel("黃耆 本次出貨數量").fill("1")
       await page.locator("#shipmentDate").fill("")
@@ -66,7 +66,7 @@ test("order, shipment, and sale forms retain business selections after validatio
       await expect(page.locator("#shipmentDate")).toHaveValue("")
       await expect(shipmentLine.getByLabel("黃耆 本次出貨數量")).toHaveValue("1")
 
-      await page.goto("/sales/new")
+      await page.goto("/orders/new?type=sale")
       await selectSearchableOption(page, {
         trigger: page.locator("#customerId"),
         searchPlaceholder: "搜尋客戶名稱或電話",
@@ -81,7 +81,7 @@ test("order, shipment, and sale forms retain business selections after validatio
         query: "黃耆",
         optionName: "黃耆",
       })
-      await page.getByRole("button", { name: "建立現場銷貨" }).click()
+      await page.getByRole("button", { name: "建立現場銷貨", exact: true }).click()
 
       await expect(page.getByText("請修正銷貨欄位後再送出。")).toBeVisible()
       await expect(page.getByText("請輸入數量")).toBeVisible()
