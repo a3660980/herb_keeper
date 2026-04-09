@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
-import { setFlashSuccess } from "@/lib/flash"
+import { setFlashError, setFlashSuccess } from "@/lib/flash"
 import { formatQuantity, toNumberValue } from "@/lib/format"
 import {
   createSaleFormState,
@@ -168,4 +168,51 @@ export async function createDirectSaleAction(
   })
   await setFlashSuccess("已建立現場銷貨，庫存與報表資料已同步更新。")
   redirect(`/sales/${directSaleId}`)
+}
+
+function getCancelDirectSaleErrorMessage(error: { code?: string; message: string }) {
+  if (error.code === "PGRST202") {
+    return "撤銷現場銷貨的資料庫函式尚未部署，請先套用最新 migration。"
+  }
+
+  if (error.message.includes("not found")) {
+    return "找不到這筆銷貨紀錄，可能已被撤銷。"
+  }
+
+  return normalizeServerActionErrorMessage(error.message, "撤銷現場銷貨失敗，請稍後再試。")
+}
+
+export async function cancelDirectSaleAction(directSaleId: string, redirectToList = false) {
+  let errorMessage = ""
+
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase.rpc("cancel_direct_sale", {
+      p_direct_sale_id: directSaleId,
+    })
+
+    if (error) {
+      errorMessage = getCancelDirectSaleErrorMessage(error)
+    } else if (!data) {
+      errorMessage = "撤銷現場銷貨失敗，系統未回傳銷貨編號。"
+    }
+  } catch (error) {
+    errorMessage = getUnexpectedErrorMessage(error)
+  }
+
+  if (errorMessage) {
+    await setFlashError(errorMessage)
+    redirect(redirectToList ? "/sales" : `/sales/${directSaleId}`)
+  }
+
+  revalidatePath("/sales")
+  revalidatePath(`/sales/${directSaleId}`)
+  revalidatePath("/dashboard")
+  revalidatePath("/products")
+  revalidatePath("/reports")
+
+  await setFlashSuccess(
+    redirectToList ? "已撤銷銷貨紀錄，庫存已回復。" : "已撤銷銷貨紀錄，庫存已回復。"
+  )
+  redirect(redirectToList ? "/sales" : `/sales/${directSaleId}`)
 }

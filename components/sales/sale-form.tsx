@@ -345,6 +345,14 @@ export function SaleForm({
             const lineErrors = state.itemErrors[line.id] ?? {}
             const lineAmount = Number(line.quantity || 0) * Number(line.finalUnitPrice || 0)
             const lineNumber = index + 1
+            const selectedProductIds = new Set(
+              values.items
+                .filter((item) => item.id !== line.id && item.productId)
+                .map((item) => item.productId)
+            )
+            const availableProductOptions = productSelectOptions.filter(
+              (option) => !selectedProductIds.has(option.value)
+            )
 
             return (
               <div
@@ -386,7 +394,7 @@ export function SaleForm({
                     <SearchableSelect
                       ariaLabel={`銷貨明細 ${lineNumber} 藥材`}
                       value={line.productId}
-                      options={productSelectOptions}
+                      options={availableProductOptions}
                       placeholder="請選擇藥材"
                       searchPlaceholder="搜尋藥材名稱"
                       emptyMessage="找不到符合的藥材"

@@ -1,5 +1,7 @@
 import Link from "next/link"
 
+import { cancelOrderAction } from "./actions"
+import { CancelOrderButton } from "@/components/orders/cancel-order-button"
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
 import { QueryPagination } from "@/components/app/query-pagination"
@@ -327,6 +329,13 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
                             <Button asChild size="sm">
                               <Link href={`/orders/${order.id}#shipment-form`}>出貨</Link>
                             </Button>
+                          ) : null}
+                          {order.status === "pending" && order.fulfilledQuantity === 0 ? (
+                            <CancelOrderButton
+                              action={cancelOrderAction.bind(null, order.id, true)}
+                              size="sm"
+                              label="撤銷"
+                            />
                           ) : null}
                         </div>
                       </TableCell>

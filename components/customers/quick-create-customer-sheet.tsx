@@ -129,7 +129,7 @@ function QuickCreateCustomerSheetForm({
             <p className="text-sm text-destructive">{state.fieldErrors.discountRate}</p>
           ) : null}
           <p className="text-sm text-muted-foreground">
-            建立後會直接帶回目前這筆交易並自動選取這位客戶。
+            1 代表原價，0.9 代表九折，0.85 代表八五折。建立後會直接帶回目前這筆交易並自動選取這位客戶。
           </p>
         </div>
       </div>

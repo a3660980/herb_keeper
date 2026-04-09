@@ -121,6 +121,10 @@ export function OrderForm({
     }))
   }
 
+  const totalAmount = values.items.reduce((sum, item) => {
+    return sum + Number(item.orderedQuantity || 0) * Number(item.finalUnitPrice || 0)
+  }, 0)
+
   const payload = JSON.stringify({
     ...values,
   })
@@ -337,6 +341,14 @@ export function OrderForm({
               : ""
             const lineErrors = state.itemErrors[line.id] ?? {}
             const lineNumber = index + 1
+            const selectedProductIds = new Set(
+              values.items
+                .filter((item) => item.id !== line.id && item.productId)
+                .map((item) => item.productId)
+            )
+            const availableProductOptions = productSelectOptions.filter(
+              (option) => !selectedProductIds.has(option.value)
+            )
 
             return (
               <div
@@ -378,7 +390,7 @@ export function OrderForm({
                     <SearchableSelect
                       ariaLabel={`訂單明細 ${lineNumber} 藥材`}
                       value={line.productId}
-                      options={productSelectOptions}
+                      options={availableProductOptions}
                       placeholder="請選擇藥材"
                       searchPlaceholder="搜尋藥材名稱"
                       emptyMessage="找不到符合的藥材"
@@ -472,6 +484,16 @@ export function OrderForm({
           })}
           </div>
         </div>
+      </div>
+
+      <div className="rounded-[1.75rem] border border-primary/18 bg-primary/10 p-4 shadow-sm sm:p-5">
+        <div className="text-sm font-medium text-foreground">本次訂單總額</div>
+        <div className="mt-2 text-2xl font-semibold text-foreground">
+          {formatCurrency(totalAmount)}
+        </div>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          送出後會建立訂單，待後續安排出貨。
+        </p>
       </div>
 
       <div className="flex flex-wrap justify-end gap-3">

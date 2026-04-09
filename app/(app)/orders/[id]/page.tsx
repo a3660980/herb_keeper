@@ -33,6 +33,7 @@ import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
 
 import { cancelOrderAction, createShipmentAction } from "../actions"
+import { CancelOrderButton } from "@/components/orders/cancel-order-button"
 
 type OrderPageProps = {
   params: Promise<{ id: string }>
@@ -237,6 +238,7 @@ export default async function OrderDetailPage({
     availableStock: String(item.availableStock),
     unit: item.unit,
     shippedQuantity: "0",
+    finalUnitPrice: String(item.finalUnitPrice),
   }))
   const boundShipmentAction = createShipmentAction.bind(null, id)
   const itemMap = new Map(items.map((item) => [item.orderItemId, item]))
@@ -260,11 +262,7 @@ export default async function OrderDetailPage({
               </Button>
             ) : null}
             {canCancelOrder ? (
-              <form action={boundCancelAction}>
-                <Button type="submit" variant="destructive">
-                  撤銷訂單
-                </Button>
-              </form>
+              <CancelOrderButton action={boundCancelAction} />
             ) : null}
             <Button asChild>
               <Link href="/orders/new">新增交易</Link>

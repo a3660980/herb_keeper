@@ -1,5 +1,7 @@
 import Link from "next/link"
 
+import { cancelDirectSaleAction } from "./actions"
+import { CancelOrderButton } from "@/components/orders/cancel-order-button"
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
 import { QueryPagination } from "@/components/app/query-pagination"
@@ -248,9 +250,18 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                       <TableCell>{formatQuantity(sale.totalQuantity)}</TableCell>
                       <TableCell>{formatCurrency(sale.totalAmount)}</TableCell>
                       <TableCell>
-                        <Button asChild size="sm" variant="outline">
-                          <Link href={`/sales/${sale.id}`}>查看</Link>
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`/sales/${sale.id}`}>查看</Link>
+                          </Button>
+                          <CancelOrderButton
+                            action={cancelDirectSaleAction.bind(null, sale.id, true)}
+                            size="sm"
+                            label="撤銷"
+                            dialogTitle="確認撤銷銷貨"
+                            dialogDescription="撤銷後此筆銷貨紀錄將被刪除，庫存數量會自動回復。確定要撤銷嗎？"
+                          />
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
