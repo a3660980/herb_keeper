@@ -55,6 +55,11 @@ test("operator can cancel a pending order before any shipment", async ({ page })
       await expect(page.getByRole("button", { name: "撤銷訂單" })).toBeVisible()
 
       await page.getByRole("button", { name: "撤銷訂單" }).click()
+      await expect(page.getByRole("heading", { name: "確認撤銷訂單" })).toBeVisible()
+      await expect(
+        page.getByText("撤銷後訂單將無法再修改或出貨，確定要撤銷嗎？")
+      ).toBeVisible()
+      await page.getByRole("button", { name: "確認撤銷" }).click()
 
       await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+(?:\?.*)?$/)
       await expect(page.getByText("已撤銷訂單，不能再修改或出貨。")).toBeVisible()
