@@ -5,7 +5,9 @@ import { CancelOrderButton } from "@/components/orders/cancel-order-button"
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
 import { QueryPagination } from "@/components/app/query-pagination"
+import { ReportDateRangePicker } from "@/components/app/report-date-range-picker"
 import { TradeModuleSwitch } from "@/components/app/trade-module-switch"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -33,7 +35,14 @@ import {
 import { paginateItems, readPageParam } from "@/lib/pagination"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
-import { getSingleSearchParam, withQueryString } from "@/lib/url"
+import {
+  getDateRangeEndBefore,
+  getDateRangeStartAt,
+  getSingleSearchParam,
+  hasInvalidDateRange,
+  readDateParam,
+  withQueryString,
+} from "@/lib/url"
 
 type SalesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
@@ -63,8 +72,13 @@ const PAGE_SIZE = 20
 export default async function SalesPage({ searchParams }: SalesPageProps) {
   const params = await searchParams
   const query = getSingleSearchParam(params.q)?.trim() ?? ""
+  const startDate = readDateParam(params.startDate)
+  const endDate = readDateParam(params.endDate)
   const requestedPage = readPageParam(params.page)
   const supabaseEnvReady = hasSupabaseEnv()
+  const dateRangeError = hasInvalidDateRange(startDate, endDate)
+    ? "日期區間不正確，結束日不能早於開始日。"
+    : ""
 
   let sales: TradeSummary[] = []
   let loadError = ""
@@ -72,10 +86,20 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
   if (supabaseEnvReady) {
     try {
       const supabase = await createClient()
-      const { data: salesRows, error: salesError } = await supabase
+      let salesRequest = supabase
         .from("direct_sales")
         .select("id, customer_id, sale_date, note")
         .order("sale_date", { ascending: false })
+
+      if (!dateRangeError && startDate) {
+        salesRequest = salesRequest.gte("sale_date", getDateRangeStartAt(startDate))
+      }
+
+      if (!dateRangeError && endDate) {
+        salesRequest = salesRequest.lt("sale_date", getDateRangeEndBefore(endDate))
+      }
+
+      const { data: salesRows, error: salesError } = await salesRequest
 
       if (salesError) {
         loadError = salesError.message
@@ -131,10 +155,13 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
   const totalRevenue = sales.reduce((sum, sale) => sum + sale.totalAmount, 0)
   const totalQuantity = sales.reduce((sum, sale) => sum + sale.totalQuantity, 0)
   const customerCount = new Set(sales.map((sale) => sale.customerName)).size
+  const hasActiveFilters = Boolean(query || startDate || endDate)
   const pagination = paginateItems(sales, requestedPage, PAGE_SIZE)
   const buildPageHref = (page: number) =>
     withQueryString("/sales", {
       q: query || undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
       page: page > 1 ? String(page) : undefined,
     })
 
@@ -162,6 +189,8 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
           </div>
         }
       />
+
+      {dateRangeError ? <FormMessage message={dateRangeError} tone="error" /> : null}
 
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="border border-border/60 bg-card/85 shadow-sm backdrop-blur">
@@ -193,20 +222,39 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
       <Card className="border border-border/60 bg-card/85 shadow-sm backdrop-blur">
         <CardHeader>
           <CardTitle>搜尋與列表</CardTitle>
-          <CardDescription>支援依客戶名稱、客戶電話、備註或銷貨單號搜尋。</CardDescription>
+          <CardDescription>支援依客戶名稱、客戶電話、備註或銷貨單號搜尋，也可限定銷貨日期區間。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form method="get" className="flex flex-col gap-3 sm:flex-row">
-            <Input name="q" defaultValue={query} placeholder="搜尋客戶名稱、電話、備註或銷貨單號" />
-            <div className="flex gap-3">
-              <Button type="submit" variant="secondary">
-                搜尋
-              </Button>
-              <Button asChild type="button" variant="outline">
-                <Link href="/sales">清除</Link>
-              </Button>
-            </div>
+          <form method="get" className="grid gap-3 xl:grid-cols-[minmax(0,1.7fr)_minmax(14rem,16rem)_auto_auto] xl:items-end">
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-muted-foreground">關鍵字</span>
+              <Input name="q" defaultValue={query} placeholder="搜尋客戶名稱、電話、備註或銷貨單號" />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-muted-foreground">日期區間</span>
+              <ReportDateRangePicker
+                endDate={endDate}
+                startDate={startDate}
+                autoApply={false}
+                className="w-full"
+              />
+            </label>
+            <Button type="submit" variant="secondary" className="xl:self-end">
+              搜尋
+            </Button>
+            <Button asChild type="button" variant="outline" className="xl:self-end">
+              <Link href="/sales">清除</Link>
+            </Button>
           </form>
+
+          {hasActiveFilters ? (
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">目前篩選</span>
+              {query ? <Badge variant="outline">關鍵字：{query}</Badge> : null}
+              {startDate ? <Badge variant="secondary">開始日：{startDate}</Badge> : null}
+              {endDate ? <Badge variant="secondary">結束日：{endDate}</Badge> : null}
+            </div>
+          ) : null}
 
           {!supabaseEnvReady ? (
             <FormMessage
@@ -217,7 +265,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
             <FormMessage message={loadError} tone="error" />
           ) : sales.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-border/60 bg-background/60 px-6 py-10 text-center text-sm text-muted-foreground">
-              {query ? "找不到符合條件的銷貨紀錄。" : "目前還沒有現場銷貨資料。"}
+              {hasActiveFilters ? "找不到符合條件的銷貨紀錄。" : "目前還沒有現場銷貨資料。"}
             </div>
           ) : (
             <div className="space-y-4">
