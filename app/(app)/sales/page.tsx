@@ -243,8 +243,11 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                       </TableCell>
                       <TableCell>
                         <div className="font-medium text-foreground">{sale.customerName}</div>
+                        {sale.customerPhone ? (
+                          <div className="text-xs text-muted-foreground">{sale.customerPhone}</div>
+                        ) : null}
                         <div className="text-xs text-muted-foreground">
-                          {sale.customerPhone || sale.note || "無備註"}
+                          {sale.note || "無備註"}
                         </div>
                       </TableCell>
                       <TableCell>{sale.itemCount}</TableCell>

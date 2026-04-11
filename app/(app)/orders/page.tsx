@@ -302,8 +302,11 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
                         <div className="font-medium text-foreground">
                           {order.customerName}
                         </div>
+                        {order.customerPhone ? (
+                          <div className="text-xs text-muted-foreground">{order.customerPhone}</div>
+                        ) : null}
                         <div className="text-xs text-muted-foreground">
-                          {order.customerPhone || order.note || "無備註"}
+                          {order.note || "無備註"}
                         </div>
                       </TableCell>
                       <TableCell>
