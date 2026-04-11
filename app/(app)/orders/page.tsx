@@ -56,6 +56,7 @@ type OrderRow = {
 type CustomerRow = {
   id: string
   name: string
+  phone: string
 }
 
 type OrderItemRow = {
@@ -118,7 +119,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
           customerIds.length
             ? supabase
                 .from("customers")
-                .select("id, name")
+                .select("id, name, phone")
                 .in("id", customerIds)
             : Promise.resolve({ data: [], error: null }),
           orderIds.length
@@ -236,11 +237,11 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
       <Card className="border border-border/60 bg-card/85 shadow-sm backdrop-blur">
         <CardHeader>
           <CardTitle>搜尋與列表</CardTitle>
-          <CardDescription>支援依客戶、備註或訂單編號搜尋，並依狀態篩選。</CardDescription>
+          <CardDescription>支援依客戶名稱、客戶電話、備註或訂單編號搜尋，並依狀態篩選。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <form method="get" className="grid gap-3 md:grid-cols-[minmax(0,1fr)_12rem_auto_auto]">
-            <Input name="q" defaultValue={query} placeholder="搜尋客戶、備註或訂單編號" />
+            <Input name="q" defaultValue={query} placeholder="搜尋客戶名稱、電話、備註或訂單編號" />
             <select
               name="status"
               defaultValue={selectedStatus}
@@ -302,7 +303,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
                           {order.customerName}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {order.note || "無備註"}
+                          {order.customerPhone || order.note || "無備註"}
                         </div>
                       </TableCell>
                       <TableCell>

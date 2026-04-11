@@ -215,6 +215,9 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                       <TableCell>{customer.discount_rate}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-2">
+                          <Button asChild size="sm" variant="secondary">
+                            <Link href={`/customers/${customer.id}`}>交易歷史</Link>
+                          </Button>
                           <Button asChild size="sm" variant="outline">
                             <Link href={`/customers/${customer.id}/edit`}>編輯</Link>
                           </Button>

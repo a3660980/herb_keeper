@@ -24,6 +24,7 @@ export type TradeSummary = {
   kind: TradeKind
   customerId: string
   customerName: string
+  customerPhone: string
   occurredAt: string
   note: string
   itemCount: number
@@ -37,6 +38,7 @@ export type TradeSummary = {
 type TradeCustomerNameRow = {
   id: string
   name: string
+  phone?: string | null
 }
 
 type OrderTradeRow = {
@@ -84,8 +86,16 @@ export const tradeCreateModeConfig = {
   },
 } as const
 
-function buildCustomerNameMap(customers: TradeCustomerNameRow[]) {
-  return new Map(customers.map((customer) => [customer.id, customer.name]))
+function buildCustomerMap(customers: TradeCustomerNameRow[]) {
+  return new Map(
+    customers.map((customer) => [
+      customer.id,
+      {
+        name: customer.name,
+        phone: customer.phone ?? "",
+      },
+    ])
+  )
 }
 
 export function buildOrderTradeSummaries(
@@ -93,7 +103,7 @@ export function buildOrderTradeSummaries(
   customers: TradeCustomerNameRow[],
   items: OrderTradeItemRow[]
 ): TradeSummary[] {
-  const customerMap = buildCustomerNameMap(customers)
+  const customerMap = buildCustomerMap(customers)
   const itemsByTradeId = new Map<string, OrderTradeItemRow[]>()
 
   items.forEach((item) => {
@@ -117,11 +127,14 @@ export function buildOrderTradeSummaries(
       0
     )
 
+    const customer = customerMap.get(order.customerId)
+
     return {
       id: order.id,
       kind: "order",
       customerId: order.customerId,
-      customerName: customerMap.get(order.customerId) ?? "未知客戶",
+      customerName: customer?.name ?? "未知客戶",
+      customerPhone: customer?.phone ?? "",
       occurredAt: order.occurredAt,
       note: order.note ?? "",
       itemCount: tradeItems.length,
@@ -139,7 +152,7 @@ export function buildSaleTradeSummaries(
   customers: TradeCustomerNameRow[],
   items: SaleTradeItemRow[]
 ): TradeSummary[] {
-  const customerMap = buildCustomerNameMap(customers)
+  const customerMap = buildCustomerMap(customers)
   const itemsByTradeId = new Map<string, SaleTradeItemRow[]>()
 
   items.forEach((item) => {
@@ -159,11 +172,14 @@ export function buildSaleTradeSummaries(
       0
     )
 
+    const customer = customerMap.get(sale.customerId)
+
     return {
       id: sale.id,
       kind: "sale",
       customerId: sale.customerId,
-      customerName: customerMap.get(sale.customerId) ?? "未知客戶",
+      customerName: customer?.name ?? "未知客戶",
+      customerPhone: customer?.phone ?? "",
       occurredAt: sale.occurredAt,
       note: sale.note ?? "",
       itemCount: tradeItems.length,
@@ -186,6 +202,7 @@ export function filterTradeSummaries(trades: TradeSummary[], query: string) {
   return trades.filter((trade) => {
     return (
       trade.customerName.toLowerCase().includes(normalizedQuery) ||
+      trade.customerPhone.toLowerCase().includes(normalizedQuery) ||
       trade.note.toLowerCase().includes(normalizedQuery) ||
       trade.id.toLowerCase().includes(normalizedQuery)
     )

@@ -49,6 +49,7 @@ type DirectSaleRow = {
 type CustomerRow = {
   id: string
   name: string
+  phone: string
 }
 
 type DirectSaleItemRow = {
@@ -85,7 +86,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
 
         const [customersResponse, itemsResponse] = await Promise.all([
           customerIds.length
-            ? supabase.from("customers").select("id, name").in("id", customerIds)
+            ? supabase.from("customers").select("id, name, phone").in("id", customerIds)
             : Promise.resolve({ data: [], error: null }),
           saleIds.length
             ? supabase
@@ -192,11 +193,11 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
       <Card className="border border-border/60 bg-card/85 shadow-sm backdrop-blur">
         <CardHeader>
           <CardTitle>搜尋與列表</CardTitle>
-          <CardDescription>支援依客戶、備註或銷貨單號搜尋。</CardDescription>
+          <CardDescription>支援依客戶名稱、客戶電話、備註或銷貨單號搜尋。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <form method="get" className="flex flex-col gap-3 sm:flex-row">
-            <Input name="q" defaultValue={query} placeholder="搜尋客戶、備註或銷貨單號" />
+            <Input name="q" defaultValue={query} placeholder="搜尋客戶名稱、電話、備註或銷貨單號" />
             <div className="flex gap-3">
               <Button type="submit" variant="secondary">
                 搜尋
@@ -243,7 +244,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                       <TableCell>
                         <div className="font-medium text-foreground">{sale.customerName}</div>
                         <div className="text-xs text-muted-foreground">
-                          {sale.note || "無備註"}
+                          {sale.customerPhone || sale.note || "無備註"}
                         </div>
                       </TableCell>
                       <TableCell>{sale.itemCount}</TableCell>
