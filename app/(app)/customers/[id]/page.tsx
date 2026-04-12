@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
 import { QueryPagination } from "@/components/app/query-pagination"
+import { SearchParamsForm } from "@/components/app/search-params-form"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -292,7 +293,7 @@ export default async function CustomerDetailPage({
           <CardDescription>可依交易單號、備註篩選，或切換只看訂單與現場銷貨。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form method="get" className="grid gap-3 md:grid-cols-[minmax(0,1fr)_12rem_auto_auto]">
+          <SearchParamsForm className="grid gap-3 md:grid-cols-[minmax(0,1fr)_12rem_auto_auto]">
             <Input name="q" defaultValue={query} placeholder="搜尋交易單號或備註" />
             <select
               name="type"
@@ -309,7 +310,7 @@ export default async function CustomerDetailPage({
             <Button asChild type="button" variant="outline">
               <Link href={`/customers/${id}`}>清除</Link>
             </Button>
-          </form>
+          </SearchParamsForm>
 
           {loadError ? (
             <FormMessage message={loadError} tone="error" />

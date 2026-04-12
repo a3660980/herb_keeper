@@ -6,6 +6,7 @@ import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
 import { QueryPagination } from "@/components/app/query-pagination"
 import { ReportDateRangePicker } from "@/components/app/report-date-range-picker"
+import { SearchParamsForm } from "@/components/app/search-params-form"
 import { TradeModuleSwitch } from "@/components/app/trade-module-switch"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -225,7 +226,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
           <CardDescription>支援依客戶名稱、客戶電話、備註或銷貨單號搜尋，也可限定銷貨日期區間。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form method="get" className="grid gap-3 xl:grid-cols-[minmax(0,1.7fr)_minmax(14rem,16rem)_auto_auto] xl:items-end">
+          <SearchParamsForm className="grid gap-3 xl:grid-cols-[minmax(0,1.7fr)_minmax(14rem,16rem)_auto_auto] xl:items-end">
             <label className="flex flex-col gap-1.5">
               <span className="text-xs font-medium text-muted-foreground">關鍵字</span>
               <Input name="q" defaultValue={query} placeholder="搜尋客戶名稱、電話、備註或銷貨單號" />
@@ -245,7 +246,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
             <Button asChild type="button" variant="outline" className="xl:self-end">
               <Link href="/sales">清除</Link>
             </Button>
-          </form>
+          </SearchParamsForm>
 
           {hasActiveFilters ? (
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">

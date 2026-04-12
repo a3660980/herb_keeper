@@ -3,6 +3,7 @@ import Link from "next/link"
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
 import { QueryPagination } from "@/components/app/query-pagination"
+import { SearchParamsForm } from "@/components/app/search-params-form"
 import { SubmitButton } from "@/components/app/submit-button"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -146,7 +147,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
           <CardDescription>支援依客戶名稱、電話與類型篩選。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form method="get" className="grid gap-3 md:grid-cols-[minmax(0,1fr)_12rem_auto_auto]">
+          <SearchParamsForm className="grid gap-3 md:grid-cols-[minmax(0,1fr)_12rem_auto_auto]">
             <input
               name="q"
               defaultValue={query}
@@ -171,7 +172,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
             <Button asChild type="button" variant="outline">
               <Link href="/customers">清除</Link>
             </Button>
-          </form>
+          </SearchParamsForm>
 
           {!supabaseEnvReady ? (
             <FormMessage

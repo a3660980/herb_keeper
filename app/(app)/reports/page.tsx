@@ -1,7 +1,10 @@
+import Link from "next/link"
+
 import { QueryPagination } from "@/components/app/query-pagination"
 import { ReportDateRangePicker } from "@/components/app/report-date-range-picker"
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
+import { SearchParamsForm } from "@/components/app/search-params-form"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -519,7 +522,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           <CardDescription>可依交易類型、客戶與藥材快速篩選目前日期區間內的交易。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form method="get" className="grid gap-3 xl:grid-cols-[minmax(0,1.5fr)_12rem_auto_auto] xl:items-end">
+          <SearchParamsForm className="grid gap-3 xl:grid-cols-[minmax(0,1.5fr)_12rem_auto_auto] xl:items-end">
             {usesUnlimitedDateRange ? (
               <input type="hidden" name="dateRange" value={DATE_RANGE_MODE_ALL} />
             ) : null}
@@ -545,7 +548,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
               篩選
             </Button>
             <Button asChild type="button" variant="outline" className="xl:self-end">
-              <a
+              <Link
                 href={withQueryString("/reports", {
                   dateRange: usesUnlimitedDateRange ? DATE_RANGE_MODE_ALL : undefined,
                   startDate: startDate || undefined,
@@ -553,9 +556,9 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                 })}
               >
                 清除
-              </a>
+              </Link>
             </Button>
-          </form>
+          </SearchParamsForm>
 
           {hasActiveFilters ? (
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">

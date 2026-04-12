@@ -3,6 +3,7 @@ import Link from "next/link"
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
 import { QueryPagination } from "@/components/app/query-pagination"
+import { SearchParamsForm } from "@/components/app/search-params-form"
 import { SubmitButton } from "@/components/app/submit-button"
 import { Button } from "@/components/ui/button"
 import {
@@ -105,7 +106,7 @@ export default async function SuppliersPage({ searchParams }: SuppliersPageProps
           <CardDescription>可依供應商名稱、電話或地址搜尋與維護。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form method="get" className="flex flex-col gap-3 sm:flex-row">
+          <SearchParamsForm className="flex flex-col gap-3 sm:flex-row">
             <input
               name="q"
               defaultValue={query}
@@ -120,7 +121,7 @@ export default async function SuppliersPage({ searchParams }: SuppliersPageProps
                 <Link href="/suppliers">清除</Link>
               </Button>
             </div>
-          </form>
+          </SearchParamsForm>
 
           {!supabaseEnvReady ? (
             <FormMessage message="尚未連接資料來源，供應商資料暫時無法載入。" tone="info" />

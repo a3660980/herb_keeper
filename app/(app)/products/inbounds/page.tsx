@@ -3,6 +3,7 @@ import Link from "next/link"
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
 import { QueryPagination } from "@/components/app/query-pagination"
+import { SearchParamsForm } from "@/components/app/search-params-form"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -360,7 +361,7 @@ export default async function InboundHistoryPage({ searchParams }: InboundHistor
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form method="get" className="grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_14rem_11rem_11rem_auto_auto] xl:items-end">
+          <SearchParamsForm className="grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_14rem_11rem_11rem_auto_auto] xl:items-end">
             {selectedProductId ? <input type="hidden" name="productId" value={selectedProductId} /> : null}
             <label className="flex flex-col gap-1.5">
               <span className="text-xs font-medium text-muted-foreground">關鍵字</span>
@@ -399,7 +400,7 @@ export default async function InboundHistoryPage({ searchParams }: InboundHistor
             <Button asChild type="button" variant="outline" className="xl:self-end">
               <Link href="/products/inbounds">清除</Link>
             </Button>
-          </form>
+          </SearchParamsForm>
 
           {hasActiveFilters ? (
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
+import { SearchParamsForm } from "@/components/app/search-params-form"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -564,7 +565,7 @@ export default async function ProductDetailPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form method="get" className="grid gap-3 xl:grid-cols-[11rem_11rem_14rem_max-content] xl:items-end">
+          <SearchParamsForm className="grid gap-3 xl:grid-cols-[11rem_11rem_14rem_max-content] xl:items-end">
             <label className="flex flex-col gap-1.5">
               <span className="text-xs font-medium text-muted-foreground">開始日</span>
               <Input name="startDate" type="date" defaultValue={startDate} />
@@ -596,7 +597,7 @@ export default async function ProductDetailPage({
                 <Link href={`/products/${id}`}>清除</Link>
               </Button>
             </div>
-          </form>
+          </SearchParamsForm>
 
           {hasActiveFilters ? (
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
