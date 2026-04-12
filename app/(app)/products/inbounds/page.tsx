@@ -22,7 +22,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { formatCurrency, formatDateTime, formatQuantity, toNumberValue } from "@/lib/format"
+import {
+  formatCurrency,
+  formatDateTime,
+  formatQuantity,
+  toNumberValue,
+} from "@/lib/format"
 import { getPaginationState, readPageParam } from "@/lib/pagination"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
@@ -129,7 +134,11 @@ function toDateInputValue(value: string) {
   return `${year}-${month}-${day}`
 }
 
-function isInboundWithinDateRange(value: string, startDate: string, endDate: string) {
+function isInboundWithinDateRange(
+  value: string,
+  startDate: string,
+  endDate: string
+) {
   const inboundDate = toDateInputValue(value)
 
   if (!inboundDate) {
@@ -147,7 +156,9 @@ function isInboundWithinDateRange(value: string, startDate: string, endDate: str
   return true
 }
 
-export default async function InboundHistoryPage({ searchParams }: InboundHistoryPageProps) {
+export default async function InboundHistoryPage({
+  searchParams,
+}: InboundHistoryPageProps) {
   const params = await searchParams
   const rawQuery = getSingleSearchParam(params.q)?.trim() ?? ""
   const query = rawQuery.toLowerCase()
@@ -185,17 +196,18 @@ export default async function InboundHistoryPage({ searchParams }: InboundHistor
         inboundRequest = inboundRequest.eq("supplier_id", selectedSupplierId)
       }
 
-      const [inboundsResponse, suppliersResponse, selectedProductResponse] = await Promise.all([
-        inboundRequest,
-        supabase.from("suppliers").select("id, name").order("name"),
-        selectedProductId
-          ? supabase
-              .from("products")
-              .select("id, name, unit")
-              .eq("id", selectedProductId)
-              .maybeSingle()
-          : Promise.resolve({ data: null, error: null }),
-      ])
+      const [inboundsResponse, suppliersResponse, selectedProductResponse] =
+        await Promise.all([
+          inboundRequest,
+          supabase.from("suppliers").select("id, name").order("name"),
+          selectedProductId
+            ? supabase
+                .from("products")
+                .select("id, name, unit")
+                .eq("id", selectedProductId)
+                .maybeSingle()
+            : Promise.resolve({ data: null, error: null }),
+        ])
 
       if (inboundsResponse.error) {
         loadError = inboundsResponse.error.message
@@ -204,19 +216,22 @@ export default async function InboundHistoryPage({ searchParams }: InboundHistor
       } else if (selectedProductResponse.error) {
         loadError = selectedProductResponse.error.message
       } else {
-        inboundRows = ((inboundsResponse.data ?? []) as RawInboundRow[]).map((row) => ({
-          id: row.id,
-          productId: row.product_id,
-          supplierId: row.supplier_id,
-          quantity: row.quantity,
-          unitCost: row.unit_cost,
-          inboundDate: row.inbound_date,
-          note: row.note ?? "",
-          product: normalizeRelation(row.product),
-          supplier: normalizeRelation(row.supplier),
-        }))
+        inboundRows = ((inboundsResponse.data ?? []) as RawInboundRow[]).map(
+          (row) => ({
+            id: row.id,
+            productId: row.product_id,
+            supplierId: row.supplier_id,
+            quantity: row.quantity,
+            unitCost: row.unit_cost,
+            inboundDate: row.inbound_date,
+            note: row.note ?? "",
+            product: normalizeRelation(row.product),
+            supplier: normalizeRelation(row.supplier),
+          })
+        )
         supplierOptions = (suppliersResponse.data ?? []) as SupplierOption[]
-        selectedProduct = (selectedProductResponse.data as SelectedProduct | null) ?? null
+        selectedProduct =
+          (selectedProductResponse.data as SelectedProduct | null) ?? null
       }
     } catch (requestError) {
       loadError =
@@ -249,16 +264,27 @@ export default async function InboundHistoryPage({ searchParams }: InboundHistor
     })
   }
 
-  const pagination = getPaginationState(inboundRows.length, requestedPage, PAGE_SIZE)
+  const pagination = getPaginationState(
+    inboundRows.length,
+    requestedPage,
+    PAGE_SIZE
+  )
   const pageStartIndex = pagination.pageStartIndex
-  const paginatedRows = inboundRows.slice(pageStartIndex, pageStartIndex + PAGE_SIZE)
+  const paginatedRows = inboundRows.slice(
+    pageStartIndex,
+    pageStartIndex + PAGE_SIZE
+  )
   const totalAmount = inboundRows.reduce((sum, row) => {
     return sum + toNumberValue(row.quantity) * toNumberValue(row.unitCost)
   }, 0)
   const supplierCount = new Set(inboundRows.map((row) => row.supplierId)).size
-  const productCount = new Set(inboundRows.map((row) => row.product?.name ?? row.id)).size
+  const productCount = new Set(
+    inboundRows.map((row) => row.product?.name ?? row.id)
+  ).size
   const latestInboundDate = inboundRows[0]?.inboundDate ?? ""
-  const hasActiveFilters = Boolean(rawQuery || selectedProductId || selectedSupplierId || startDate || endDate)
+  const hasActiveFilters = Boolean(
+    rawQuery || selectedProductId || selectedSupplierId || startDate || endDate
+  )
   const buildHistoryHref = (overrides: {
     productId?: string
     supplierId?: string
@@ -273,7 +299,10 @@ export default async function InboundHistoryPage({ searchParams }: InboundHistor
       q: overrides.q,
       startDate: overrides.startDate,
       endDate: overrides.endDate,
-      page: overrides.page && overrides.page > 1 ? String(overrides.page) : undefined,
+      page:
+        overrides.page && overrides.page > 1
+          ? String(overrides.page)
+          : undefined,
     })
   const buildPageHref = (page: number) =>
     buildHistoryHref({
@@ -288,7 +317,9 @@ export default async function InboundHistoryPage({ searchParams }: InboundHistor
     <div className="space-y-6">
       <PageIntro
         eyebrow="Products"
-        title={selectedProduct ? `${selectedProduct.name} 進貨紀錄` : "進貨歷史"}
+        title={
+          selectedProduct ? `${selectedProduct.name} 進貨紀錄` : "進貨歷史"
+        }
         description={
           selectedProduct
             ? `目前查看 ${selectedProduct.name} 的進貨紀錄，可回頭查每次向哪個供應商採購、進了多少與成本是多少。`
@@ -300,12 +331,17 @@ export default async function InboundHistoryPage({ searchParams }: InboundHistor
               <Link
                 href={
                   selectedProductId
-                    ? withQueryString("/products/inbounds/new", { productId: selectedProductId })
+                    ? withQueryString("/products/inbounds/new", {
+                        productId: selectedProductId,
+                      })
                     : "/products/inbounds/new"
                 }
               >
                 新增進貨
               </Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href="/products/inbounds/batch">批次進貨</Link>
             </Button>
             {selectedProductId ? (
               <Button asChild variant="outline">
@@ -324,7 +360,9 @@ export default async function InboundHistoryPage({ searchParams }: InboundHistor
         }
       />
 
-      {dateRangeError ? <FormMessage message={dateRangeError} tone="error" /> : null}
+      {dateRangeError ? (
+        <FormMessage message={dateRangeError} tone="error" />
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="border border-border/60 bg-card/85 shadow-sm backdrop-blur">
@@ -357,14 +395,22 @@ export default async function InboundHistoryPage({ searchParams }: InboundHistor
         <CardHeader>
           <CardTitle>搜尋與列表</CardTitle>
           <CardDescription>
-            可依藥材、供應商、電話、地址或備註搜尋，也可限定日期區間。{selectedProduct ? `目前已鎖定藥材：${selectedProduct.name}。` : ""}{latestInboundDate ? `最近一筆進貨時間：${formatDateTime(latestInboundDate)}。` : ""}
+            可依藥材、供應商、電話、地址或備註搜尋，也可限定日期區間。
+            {selectedProduct ? `目前已鎖定藥材：${selectedProduct.name}。` : ""}
+            {latestInboundDate
+              ? `最近一筆進貨時間：${formatDateTime(latestInboundDate)}。`
+              : ""}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <SearchParamsForm className="grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_14rem_11rem_11rem_auto_auto] xl:items-end">
-            {selectedProductId ? <input type="hidden" name="productId" value={selectedProductId} /> : null}
+            {selectedProductId ? (
+              <input type="hidden" name="productId" value={selectedProductId} />
+            ) : null}
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-muted-foreground">關鍵字</span>
+              <span className="text-xs font-medium text-muted-foreground">
+                關鍵字
+              </span>
               <Input
                 name="q"
                 defaultValue={rawQuery}
@@ -372,11 +418,13 @@ export default async function InboundHistoryPage({ searchParams }: InboundHistor
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-muted-foreground">供應商</span>
+              <span className="text-xs font-medium text-muted-foreground">
+                供應商
+              </span>
               <select
                 name="supplierId"
                 defaultValue={selectedSupplierId}
-                className="flex h-11 w-full rounded-[1.15rem] border border-border/70 bg-background/78 px-4 py-2 text-base text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] outline-none transition-[color,box-shadow,background-color,border-color] focus-visible:border-primary/30 focus-visible:ring-4 focus-visible:ring-ring/15 sm:text-sm"
+                className="flex h-11 w-full rounded-[1.15rem] border border-border/70 bg-background/78 px-4 py-2 text-base text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] transition-[color,box-shadow,background-color,border-color] outline-none focus-visible:border-primary/30 focus-visible:ring-4 focus-visible:ring-ring/15 sm:text-sm"
               >
                 <option value="">全部供應商</option>
                 {supplierOptions.map((supplier) => (
@@ -387,17 +435,26 @@ export default async function InboundHistoryPage({ searchParams }: InboundHistor
               </select>
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-muted-foreground">開始日</span>
+              <span className="text-xs font-medium text-muted-foreground">
+                開始日
+              </span>
               <Input name="startDate" type="date" defaultValue={startDate} />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-muted-foreground">結束日</span>
+              <span className="text-xs font-medium text-muted-foreground">
+                結束日
+              </span>
               <Input name="endDate" type="date" defaultValue={endDate} />
             </label>
             <Button type="submit" variant="secondary" className="xl:self-end">
               套用篩選
             </Button>
-            <Button asChild type="button" variant="outline" className="xl:self-end">
+            <Button
+              asChild
+              type="button"
+              variant="outline"
+              className="xl:self-end"
+            >
               <Link href="/products/inbounds">清除</Link>
             </Button>
           </SearchParamsForm>
@@ -405,25 +462,41 @@ export default async function InboundHistoryPage({ searchParams }: InboundHistor
           {hasActiveFilters ? (
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span className="font-medium text-foreground">目前篩選</span>
-              {selectedProduct ? <Badge variant="outline">藥材：{selectedProduct.name}</Badge> : null}
-              {rawQuery ? <Badge variant="outline">關鍵字：{rawQuery}</Badge> : null}
+              {selectedProduct ? (
+                <Badge variant="outline">藥材：{selectedProduct.name}</Badge>
+              ) : null}
+              {rawQuery ? (
+                <Badge variant="outline">關鍵字：{rawQuery}</Badge>
+              ) : null}
               {selectedSupplierId ? (
                 <Badge variant="outline">
-                  供應商：{supplierOptions.find((supplier) => supplier.id === selectedSupplierId)?.name ?? "已選供應商"}
+                  供應商：
+                  {supplierOptions.find(
+                    (supplier) => supplier.id === selectedSupplierId
+                  )?.name ?? "已選供應商"}
                 </Badge>
               ) : null}
-              {startDate ? <Badge variant="secondary">開始日：{startDate}</Badge> : null}
-              {endDate ? <Badge variant="secondary">結束日：{endDate}</Badge> : null}
+              {startDate ? (
+                <Badge variant="secondary">開始日：{startDate}</Badge>
+              ) : null}
+              {endDate ? (
+                <Badge variant="secondary">結束日：{endDate}</Badge>
+              ) : null}
             </div>
           ) : null}
 
           {!supabaseEnvReady ? (
-            <FormMessage message="尚未連接資料來源，進貨歷史暫時無法載入。" tone="info" />
+            <FormMessage
+              message="尚未連接資料來源，進貨歷史暫時無法載入。"
+              tone="info"
+            />
           ) : loadError ? (
             <FormMessage message={loadError} tone="error" />
           ) : inboundRows.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-border/60 bg-background/60 px-6 py-10 text-center text-sm text-muted-foreground">
-              {hasActiveFilters ? "找不到符合條件的進貨資料。" : "目前還沒有進貨紀錄。"}
+              {hasActiveFilters
+                ? "找不到符合條件的進貨資料。"
+                : "目前還沒有進貨紀錄。"}
             </div>
           ) : (
             <div className="space-y-4">
@@ -442,13 +515,18 @@ export default async function InboundHistoryPage({ searchParams }: InboundHistor
                 <TableBody>
                   {paginatedRows.map((row) => {
                     const unit = row.product?.unit ?? ""
-                    const lineTotal = toNumberValue(row.quantity) * toNumberValue(row.unitCost)
+                    const lineTotal =
+                      toNumberValue(row.quantity) * toNumberValue(row.unitCost)
 
                     return (
                       <TableRow key={row.id}>
                         <TableCell>
-                          <div className="font-medium text-foreground">{formatDateTime(row.inboundDate)}</div>
-                          <div className="text-xs text-muted-foreground">{row.id.slice(0, 8).toUpperCase()}</div>
+                          <div className="font-medium text-foreground">
+                            {formatDateTime(row.inboundDate)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {row.id.slice(0, 8).toUpperCase()}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div>
@@ -459,13 +537,25 @@ export default async function InboundHistoryPage({ searchParams }: InboundHistor
                               {row.product?.name ?? "未知藥材"}
                             </Link>
                           </div>
-                          <div className="text-xs text-muted-foreground">單位：{unit || "-"}</div>
+                          <div className="text-xs text-muted-foreground">
+                            單位：{unit || "-"}
+                          </div>
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium text-foreground">{row.supplier?.name ?? "未知供應商"}</div>
+                          <div className="font-medium text-foreground">
+                            {row.supplier?.name ?? "未知供應商"}
+                          </div>
                           <div className="flex flex-wrap gap-2 pt-1">
-                            {row.supplier?.phone ? <Badge variant="outline">{row.supplier.phone}</Badge> : null}
-                            {row.supplier?.address ? <Badge variant="secondary">{row.supplier.address}</Badge> : null}
+                            {row.supplier?.phone ? (
+                              <Badge variant="outline">
+                                {row.supplier.phone}
+                              </Badge>
+                            ) : null}
+                            {row.supplier?.address ? (
+                              <Badge variant="secondary">
+                                {row.supplier.address}
+                              </Badge>
+                            ) : null}
                           </div>
                         </TableCell>
                         <TableCell>

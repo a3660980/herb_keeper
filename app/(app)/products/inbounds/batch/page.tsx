@@ -1,23 +1,18 @@
 import Link from "next/link"
 
-import { createInboundAction } from "@/app/(app)/products/inbounds/actions"
+import { createInboundBatchAction } from "@/app/(app)/products/inbounds/actions"
 import { FormMessage } from "@/components/app/form-message"
-import { InboundForm } from "@/components/inbounds/inbound-form"
 import { PageIntro } from "@/components/app/page-intro"
+import { BatchInboundForm } from "@/components/inbounds/batch-inbound-form"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  createInboundFormState,
+  createInboundBatchFormState,
   type InboundProductOption,
   type InboundSupplierOption,
 } from "@/lib/features/inbounds"
 import { hasSupabaseEnv } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
-import { getSingleSearchParam } from "@/lib/url"
-
-type NewInboundPageProps = {
-  searchParams: Promise<Record<string, string | string[] | undefined>>
-}
 
 type InventoryProductRow = {
   product_id: string
@@ -35,11 +30,7 @@ type SupplierRow = {
   address: string | null
 }
 
-export default async function NewInboundPage({
-  searchParams,
-}: NewInboundPageProps) {
-  const params = await searchParams
-  const selectedProductId = getSingleSearchParam(params.productId)?.trim() ?? ""
+export default async function BatchInboundPage() {
   const supabaseEnvReady = hasSupabaseEnv()
 
   let products: InboundProductOption[] = []
@@ -88,24 +79,20 @@ export default async function NewInboundPage({
       }
     } catch (error) {
       loadError =
-        error instanceof Error ? error.message : "無法讀取進貨所需資料。"
+        error instanceof Error ? error.message : "無法讀取批次進貨所需資料。"
     }
   }
-
-  const hasSelectedProduct = products.some(
-    (product) => product.id === selectedProductId
-  )
 
   return (
     <div className="space-y-6">
       <PageIntro
         eyebrow="Products"
-        title="新增進貨"
-        description="記錄藥材進貨數量、單位成本與進貨時間，系統會同步更新平均成本與庫存。"
+        title="批次進貨"
+        description="同一家供應商可一次登錄多種藥材的到貨數量與成本，適合同張採購單或同批到貨作業。"
         aside={
           <div className="flex flex-wrap gap-3">
             <Button asChild>
-              <Link href="/products/inbounds/batch">批次進貨</Link>
+              <Link href="/products/inbounds/new">單筆進貨</Link>
             </Button>
             <Button asChild variant="outline">
               <Link href="/products/inbounds">進貨歷史</Link>
@@ -122,7 +109,7 @@ export default async function NewInboundPage({
 
       {!supabaseEnvReady ? (
         <FormMessage
-          message="尚未連接資料來源，進貨暫時無法建立。"
+          message="尚未連接資料來源，批次進貨暫時無法建立。"
           tone="info"
         />
       ) : loadError ? (
@@ -132,33 +119,27 @@ export default async function NewInboundPage({
           message="目前還沒有藥材資料，請先建立至少一筆藥材。"
           tone="info"
         />
+      ) : suppliers.length === 0 ? (
+        <FormMessage
+          message="目前還沒有供應商，可先到供應商管理建立第一筆，或在表單內使用快速新增。"
+          tone="info"
+        />
       ) : (
-        <>
-          {suppliers.length === 0 ? (
-            <FormMessage
-              message="目前還沒有供應商，可直接在下方進貨單內用抽屜快速新增第一筆供應商。"
-              tone="info"
+        <Card className="border border-border/60 bg-card/85 shadow-sm backdrop-blur">
+          <CardHeader>
+            <CardTitle>批次進貨資料</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <BatchInboundForm
+              action={createInboundBatchAction}
+              initialState={createInboundBatchFormState()}
+              products={products}
+              suppliers={suppliers}
+              submitLabel="建立批次進貨"
+              pendingLabel="建立中..."
             />
-          ) : null}
-
-          <Card className="border border-border/60 bg-card/85 shadow-sm backdrop-blur">
-            <CardHeader>
-              <CardTitle>進貨資料</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <InboundForm
-                action={createInboundAction}
-                initialState={createInboundFormState({
-                  productId: hasSelectedProduct ? selectedProductId : "",
-                })}
-                products={products}
-                suppliers={suppliers}
-                submitLabel="建立進貨紀錄"
-                pendingLabel="建立中..."
-              />
-            </CardContent>
-          </Card>
-        </>
+          </CardContent>
+        </Card>
       )}
     </div>
   )

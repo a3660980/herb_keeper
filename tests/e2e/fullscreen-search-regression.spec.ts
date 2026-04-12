@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test, type Page } from "@playwright/test"
 
 import { login } from "./helpers/auth"
 import { runWithE2ECleanup } from "./helpers/cleanup"
@@ -10,7 +10,7 @@ type FullscreenDocument = Document & {
   webkitFullscreenEnabled?: boolean
 }
 
-async function isFullscreenActive(page: Parameters<typeof test>[0]["page"]) {
+async function isFullscreenActive(page: Page) {
   return page.evaluate(() => {
     const doc = document as FullscreenDocument
 
