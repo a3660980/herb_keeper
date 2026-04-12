@@ -8,6 +8,7 @@ import {
   useState,
 } from "react"
 
+import { ConfirmActionButton } from "@/components/app/confirm-action-button"
 import { FormMessage } from "@/components/app/form-message"
 import { SubmitButton } from "@/components/app/submit-button"
 import { QuickCreateSupplierSheet } from "@/components/suppliers/quick-create-supplier-sheet"
@@ -92,23 +93,6 @@ export function BatchInboundForm({
   useEffect(() => {
     syncSupplierOptions(suppliers)
   }, [suppliers])
-
-  useEffect(() => {
-    setCostBasisByLine((current) => {
-      const next = { ...current }
-
-      values.items.forEach((item) => {
-        if (!next[item.id]) {
-          next[item.id] =
-            item.totalCost.trim() && !item.unitCost.trim()
-              ? "totalCost"
-              : "unitCost"
-        }
-      })
-
-      return next
-    })
-  }, [values.items])
 
   useEffect(() => {
     const previousItemCount = previousItemCountRef.current
@@ -474,12 +458,14 @@ export function BatchInboundForm({
                         小計 {formatCurrency(lineTotal)}
                       </Badge>
                       {canRemoveItems ? (
-                        <Button
-                          type="button"
+                        <ConfirmActionButton
                           size="xs"
                           variant="ghost"
                           className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:border-destructive/30 focus-visible:ring-destructive/15"
-                          onClick={() => {
+                          dialogTitle={`確認移除第 ${lineNumber} 筆進貨明細`}
+                          dialogDescription="這筆尚未送出的進貨明細會從表單中移除，確定要繼續嗎？"
+                          confirmLabel="確認移除"
+                          onConfirm={() => {
                             setValues((current) => ({
                               ...current,
                               items: current.items.filter(
@@ -489,7 +475,7 @@ export function BatchInboundForm({
                           }}
                         >
                           移除
-                        </Button>
+                        </ConfirmActionButton>
                       ) : null}
                     </div>
                   </div>

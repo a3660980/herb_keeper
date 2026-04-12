@@ -1,10 +1,10 @@
 import Link from "next/link"
 
+import { ConfirmActionButton } from "@/components/app/confirm-action-button"
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
 import { QueryPagination } from "@/components/app/query-pagination"
 import { SearchParamsForm } from "@/components/app/search-params-form"
-import { SubmitButton } from "@/components/app/submit-button"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -229,13 +229,16 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                               name="customerName"
                               value={customer.name}
                             />
-                            <SubmitButton
+                            <ConfirmActionButton
                               size="sm"
                               variant="destructive"
-                              pendingLabel="刪除中..."
+                              dialogTitle={`確認刪除客戶「${customer.name}」`}
+                              dialogDescription="刪除後將無法復原。確認後才會正式刪除此客戶資料。"
+                              confirmLabel="確認刪除"
+                              pendingConfirmLabel="刪除中..."
                             >
                               刪除
-                            </SubmitButton>
+                            </ConfirmActionButton>
                           </form>
                         </div>
                       </TableCell>

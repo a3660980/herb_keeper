@@ -1,10 +1,10 @@
 import Link from "next/link"
 
+import { ConfirmActionButton } from "@/components/app/confirm-action-button"
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
 import { QueryPagination } from "@/components/app/query-pagination"
 import { SearchParamsForm } from "@/components/app/search-params-form"
-import { SubmitButton } from "@/components/app/submit-button"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -158,13 +158,16 @@ export default async function SuppliersPage({ searchParams }: SuppliersPageProps
                           <form action={deleteSupplierAction}>
                             <input type="hidden" name="supplierId" value={supplier.id} />
                             <input type="hidden" name="supplierName" value={supplier.name} />
-                            <SubmitButton
+                            <ConfirmActionButton
                               size="sm"
                               variant="destructive"
-                              pendingLabel="刪除中..."
+                              dialogTitle={`確認刪除供應商「${supplier.name}」`}
+                              dialogDescription="刪除後將無法復原。確認後才會正式刪除此供應商資料。"
+                              confirmLabel="確認刪除"
+                              pendingConfirmLabel="刪除中..."
                             >
                               刪除
-                            </SubmitButton>
+                            </ConfirmActionButton>
                           </form>
                         </div>
                       </TableCell>

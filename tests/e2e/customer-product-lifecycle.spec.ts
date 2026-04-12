@@ -53,6 +53,10 @@ test("operator can update and delete unreferenced customers and products", async
       await expect(updatedCustomerRow.getByText("批發")).toBeVisible()
       await expect(updatedCustomerRow.getByText("0.85")).toBeVisible()
       await updatedCustomerRow.getByRole("button", { name: "刪除" }).click()
+      await expect(
+        page.getByRole("heading", { name: `確認刪除客戶「${updatedCustomerName}」` })
+      ).toBeVisible()
+      await page.getByRole("button", { name: "確認刪除" }).click()
 
       await expect(page).toHaveURL(/\/customers(?:\?.*)?$/)
       await expect(page.getByText(`已刪除客戶：${updatedCustomerName}`)).toBeVisible()
@@ -81,6 +85,10 @@ test("operator can update and delete unreferenced customers and products", async
       })
       await expect(updatedProductRow.getByText("$72")).toBeVisible()
       await updatedProductRow.getByRole("button", { name: "刪除" }).click()
+      await expect(
+        page.getByRole("heading", { name: `確認刪除藥材「${updatedProductName}」` })
+      ).toBeVisible()
+      await page.getByRole("button", { name: "確認刪除" }).click()
 
       await expect(page).toHaveURL(/\/products(?:\?.*)?$/)
       await expect(page.getByText(`已刪除藥材：${updatedProductName}`)).toBeVisible()
@@ -111,6 +119,10 @@ test("operator can update and delete unreferenced customers and products", async
       })
       await expect(updatedSupplierRow.getByText("已更新備註")).toBeVisible()
       await updatedSupplierRow.getByRole("button", { name: "刪除" }).click()
+      await expect(
+        page.getByRole("heading", { name: `確認刪除供應商「${updatedSupplierName}」` })
+      ).toBeVisible()
+      await page.getByRole("button", { name: "確認刪除" }).click()
 
       await expect(page).toHaveURL(/\/suppliers(?:\?.*)?$/)
       await expect(page.getByText(`已刪除供應商：${updatedSupplierName}`)).toBeVisible()
