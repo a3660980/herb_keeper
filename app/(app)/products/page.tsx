@@ -1,9 +1,10 @@
 import Link from "next/link"
 
+import { ConfirmActionButton } from "@/components/app/confirm-action-button"
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
 import { QueryPagination } from "@/components/app/query-pagination"
-import { SubmitButton } from "@/components/app/submit-button"
+import { SearchParamsForm } from "@/components/app/search-params-form"
 import { ProductsActionPanel } from "@/components/products/products-action-panel"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -162,7 +163,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           <CardDescription>可依藥材名稱搜尋，並快速聚焦低庫存或帳存差異品項，直接執行進貨、減損、編輯與刪除。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form method="get" className="grid gap-3 md:grid-cols-[minmax(0,1fr)_12rem_auto_auto]">
+          <SearchParamsForm className="grid gap-3 md:grid-cols-[minmax(0,1fr)_12rem_auto_auto]">
             <Input
               name="q"
               defaultValue={query}
@@ -183,7 +184,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
             <Button asChild type="button" variant="outline">
               <Link href="/products">清除</Link>
             </Button>
-          </form>
+          </SearchParamsForm>
 
           <div className="rounded-[1.25rem] border border-border/60 bg-background/66 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]">
             <div className="flex flex-wrap items-center gap-2">
@@ -322,13 +323,16 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                                 name="productName"
                                 value={product.product_name}
                               />
-                              <SubmitButton
+                              <ConfirmActionButton
                                 size="sm"
                                 variant="destructive"
-                                pendingLabel="刪除中..."
+                                dialogTitle={`確認刪除藥材「${product.product_name}」`}
+                                dialogDescription="刪除後將無法復原。確認後才會正式刪除此藥材資料。"
+                                confirmLabel="確認刪除"
+                                pendingConfirmLabel="刪除中..."
                               >
                                 刪除
-                              </SubmitButton>
+                              </ConfirmActionButton>
                             </form>
                           </div>
                         </TableCell>

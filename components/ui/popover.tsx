@@ -17,14 +17,34 @@ function PopoverTrigger({
   return <PopoverPrimitive.Trigger data-slot="popover-trigger" {...props} />
 }
 
+type FullscreenDocument = Document & {
+  webkitFullscreenElement?: Element | null
+}
+
+function getFullscreenContainer() {
+  if (typeof document === "undefined") {
+    return undefined
+  }
+
+  const fullscreenElement = (document as FullscreenDocument).fullscreenElement
+    ?? (document as FullscreenDocument).webkitFullscreenElement
+
+  return fullscreenElement instanceof HTMLElement ? fullscreenElement : undefined
+}
+
 function PopoverContent({
   className,
   align = "center",
   sideOffset = 4,
+  container,
   ...props
-}: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+}: React.ComponentProps<typeof PopoverPrimitive.Content> & {
+  container?: React.ComponentProps<typeof PopoverPrimitive.Portal>["container"]
+}) {
+  const portalContainer = container ?? getFullscreenContainer()
+
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal container={portalContainer}>
       <PopoverPrimitive.Content
         data-slot="popover-content"
         align={align}

@@ -3,6 +3,7 @@ import Link from "next/link"
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
 import { QueryPagination } from "@/components/app/query-pagination"
+import { SearchParamsForm } from "@/components/app/search-params-form"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -372,10 +373,7 @@ export default async function InventoryDisposalsPage({
           <CardDescription>可依藥材、減損原因與日期區間聚焦查找減損紀錄。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form
-            method="get"
-            className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_12rem_11rem_11rem_auto_auto]"
-          >
+          <SearchParamsForm className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_12rem_11rem_11rem_auto_auto]">
             {selectedProductId ? <input type="hidden" name="productId" value={selectedProductId} /> : null}
             <Input name="q" defaultValue={rawQuery} placeholder="搜尋藥材名稱或備註" />
             <select
@@ -398,7 +396,7 @@ export default async function InventoryDisposalsPage({
             <Button asChild type="button" variant="outline">
               <Link href={buildHistoryHref({ productId: selectedProductId || undefined })}>清除</Link>
             </Button>
-          </form>
+          </SearchParamsForm>
 
           {selectedProduct ? (
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">

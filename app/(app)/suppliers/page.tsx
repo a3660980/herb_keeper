@@ -1,9 +1,10 @@
 import Link from "next/link"
 
+import { ConfirmActionButton } from "@/components/app/confirm-action-button"
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
 import { QueryPagination } from "@/components/app/query-pagination"
-import { SubmitButton } from "@/components/app/submit-button"
+import { SearchParamsForm } from "@/components/app/search-params-form"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -105,7 +106,7 @@ export default async function SuppliersPage({ searchParams }: SuppliersPageProps
           <CardDescription>可依供應商名稱、電話或地址搜尋與維護。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form method="get" className="flex flex-col gap-3 sm:flex-row">
+          <SearchParamsForm className="flex flex-col gap-3 sm:flex-row">
             <input
               name="q"
               defaultValue={query}
@@ -120,7 +121,7 @@ export default async function SuppliersPage({ searchParams }: SuppliersPageProps
                 <Link href="/suppliers">清除</Link>
               </Button>
             </div>
-          </form>
+          </SearchParamsForm>
 
           {!supabaseEnvReady ? (
             <FormMessage message="尚未連接資料來源，供應商資料暫時無法載入。" tone="info" />
@@ -157,13 +158,16 @@ export default async function SuppliersPage({ searchParams }: SuppliersPageProps
                           <form action={deleteSupplierAction}>
                             <input type="hidden" name="supplierId" value={supplier.id} />
                             <input type="hidden" name="supplierName" value={supplier.name} />
-                            <SubmitButton
+                            <ConfirmActionButton
                               size="sm"
                               variant="destructive"
-                              pendingLabel="刪除中..."
+                              dialogTitle={`確認刪除供應商「${supplier.name}」`}
+                              dialogDescription="刪除後將無法復原。確認後才會正式刪除此供應商資料。"
+                              confirmLabel="確認刪除"
+                              pendingConfirmLabel="刪除中..."
                             >
                               刪除
-                            </SubmitButton>
+                            </ConfirmActionButton>
                           </form>
                         </div>
                       </TableCell>

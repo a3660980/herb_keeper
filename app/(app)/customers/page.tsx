@@ -1,9 +1,10 @@
 import Link from "next/link"
 
+import { ConfirmActionButton } from "@/components/app/confirm-action-button"
 import { FormMessage } from "@/components/app/form-message"
 import { PageIntro } from "@/components/app/page-intro"
 import { QueryPagination } from "@/components/app/query-pagination"
-import { SubmitButton } from "@/components/app/submit-button"
+import { SearchParamsForm } from "@/components/app/search-params-form"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -146,7 +147,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
           <CardDescription>支援依客戶名稱、電話與類型篩選。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form method="get" className="grid gap-3 md:grid-cols-[minmax(0,1fr)_12rem_auto_auto]">
+          <SearchParamsForm className="grid gap-3 md:grid-cols-[minmax(0,1fr)_12rem_auto_auto]">
             <input
               name="q"
               defaultValue={query}
@@ -171,7 +172,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
             <Button asChild type="button" variant="outline">
               <Link href="/customers">清除</Link>
             </Button>
-          </form>
+          </SearchParamsForm>
 
           {!supabaseEnvReady ? (
             <FormMessage
@@ -215,6 +216,9 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                       <TableCell>{customer.discount_rate}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-2">
+                          <Button asChild size="sm" variant="secondary">
+                            <Link href={`/customers/${customer.id}`}>交易歷史</Link>
+                          </Button>
                           <Button asChild size="sm" variant="outline">
                             <Link href={`/customers/${customer.id}/edit`}>編輯</Link>
                           </Button>
@@ -225,13 +229,16 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                               name="customerName"
                               value={customer.name}
                             />
-                            <SubmitButton
+                            <ConfirmActionButton
                               size="sm"
                               variant="destructive"
-                              pendingLabel="刪除中..."
+                              dialogTitle={`確認刪除客戶「${customer.name}」`}
+                              dialogDescription="刪除後將無法復原。確認後才會正式刪除此客戶資料。"
+                              confirmLabel="確認刪除"
+                              pendingConfirmLabel="刪除中..."
                             >
                               刪除
-                            </SubmitButton>
+                            </ConfirmActionButton>
                           </form>
                         </div>
                       </TableCell>

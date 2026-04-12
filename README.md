@@ -6,7 +6,7 @@ HerbKeeper 是一套為中藥行設計的 Web-based 進銷存系統，使用 Nex
 
 - Supabase migration，包含產品、客戶、進貨、訂單、部分出貨、現場銷貨與 inventory_ledger。
 - Auth / RLS 權限模型，內建 profiles 與角色分級。
-- 可重複執行的最小 seed data，用於實測 Products / Customers / Direct Sales 流程。
+- 可重複執行的示範 seed data，涵蓋常見藥材、客戶、供應商與進銷存交易流程。
 - Next.js App Router 基礎版型、中文導航與各功能模組頁面。
 - Supabase browser / server helper 與線上環境變數相容處理。
 
@@ -16,7 +16,7 @@ HerbKeeper 是一套為中藥行設計的 Web-based 進銷存系統，使用 Nex
 - `components/`: shadcn UI 與應用層元件。
 - `lib/supabase/`: browser / server Supabase helper 與環境變數工具。
 - `supabase/migrations/`: 資料庫 migration。
-- `supabase/seed.sql`: 最小示範資料。
+- `supabase/seed.sql`: 較完整的示範資料。
 - `supabase/config.toml`: Supabase CLI 設定，支援 `db push --include-seed`。
 
 ## 線上 Supabase 設定
@@ -49,7 +49,7 @@ SUPABASE_SERVICE_ROLE_KEY=<optional service role key>
 supabase db push
 ```
 
-連最小 seed 一起套到 staging 或驗證環境：
+連示範 seed 一起套到 staging 或驗證環境：
 
 ```bash
 supabase db push --include-seed

@@ -96,6 +96,21 @@ test("operator can complete the core customer, product, order, shipment, and sal
       await expect(page.getByText("已建立現場銷貨，庫存與報表資料已同步更新。")).toBeVisible()
       await expect(page.getByText(customerName).first()).toBeVisible()
 
+      await page.goto(`/orders?q=${encodeURIComponent(customerPhone)}`)
+      const orderHistoryRow = page.getByRole("row", { name: new RegExp(customerName) })
+      await expect(orderHistoryRow).toBeVisible()
+      await expect(orderHistoryRow.getByText(customerPhone)).toBeVisible()
+
+      await page.goto(`/customers?q=${encodeURIComponent(customerPhone)}`)
+      const customerHistoryRow = page.getByRole("row", { name: new RegExp(customerName) })
+      await expect(customerHistoryRow).toBeVisible()
+      await customerHistoryRow.getByRole("link", { name: "交易歷史" }).click()
+
+      await expect(page).toHaveURL(/\/customers\/[0-9a-f-]+(?:\?.*)?$/)
+      await expect(page.getByRole("heading", { name: `${customerName} 交易歷史` })).toBeVisible()
+      await expect(page.getByText("訂單出貨", { exact: true }).first()).toBeVisible()
+      await expect(page.getByText("現場銷貨", { exact: true }).first()).toBeVisible()
+
       await page.goto(`/products?q=${encodeURIComponent(productName)}&filter=low`)
       const inventoryRow = page.getByRole("row", { name: new RegExp(productName) })
       await expect(inventoryRow).toBeVisible()

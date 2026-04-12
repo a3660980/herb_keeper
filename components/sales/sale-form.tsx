@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useEffectEvent, useRef, useState } from "react"
 
+import { ConfirmActionButton } from "@/components/app/confirm-action-button"
 import { FormMessage } from "@/components/app/form-message"
 import { FormStateToast } from "@/components/app/form-state-toast"
 import { SubmitButton } from "@/components/app/submit-button"
@@ -371,12 +372,14 @@ export function SaleForm({
                     <div className="text-sm font-medium text-foreground">銷貨明細</div>
                   </div>
                   {canRemoveItems ? (
-                    <Button
-                      type="button"
+                    <ConfirmActionButton
                       size="xs"
                       variant="ghost"
                       className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:border-destructive/30 focus-visible:ring-destructive/15"
-                      onClick={() => {
+                      dialogTitle={`確認移除第 ${lineNumber} 筆銷貨明細`}
+                      dialogDescription="這筆尚未送出的銷貨明細會從表單中移除，確定要繼續嗎？"
+                      confirmLabel="確認移除"
+                      onConfirm={() => {
                         setValues((current) => ({
                           ...current,
                           items: current.items.filter((item) => item.id !== line.id),
@@ -384,7 +387,7 @@ export function SaleForm({
                       }}
                     >
                       移除
-                    </Button>
+                    </ConfirmActionButton>
                   ) : null}
                 </div>
 
