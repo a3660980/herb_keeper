@@ -1,0 +1,171 @@
+name: Supabase Stage Backup To Google Drive
+
+on:
+  schedule:
+    - cron: "0 19 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: supabase-stage-backup-google-drive-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: Stage
+    permissions:
+      contents: read
+
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      GDRIVE_RCLONE_CONFIG: ${{ secrets.GDRIVE_RCLONE_CONFIG }}
+      BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+      BACKUP_RETENTION_DAYS: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install rclone
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rclone
+
+      - name: Validate backup secrets
+        run: |
+          test -n "$SUPABASE_DB_URL" || (echo "Missing secret: SUPABASE_DB_URL" && exit 1)
+          test -n "$GDRIVE_RCLONE_CONFIG" || (echo "Missing secret: GDRIVE_RCLONE_CONFIG" && exit 1)
+          test -n "$BACKUP_ENCRYPTION_PASSPHRASE" || (echo "Missing secret: BACKUP_ENCRYPTION_PASSPHRASE" && exit 1)
+
+      - name: Validate database URL format
+        run: |
+          node --input-type=module <<'EOF'
+          const value = process.env.SUPABASE_DB_URL?.trim() ?? ""
+
+          if (!value) {
+            throw new Error("SUPABASE_DB_URL is empty after trimming.")
+          }
+
+          if (!value.startsWith("postgresql://") && !value.startsWith("postgres://")) {
+            throw new Error("SUPABASE_DB_URL must be a PostgreSQL connection string.")
+          }
+
+          const url = new URL(value)
+
+          if (!url.hostname) {
+            throw new Error("SUPABASE_DB_URL must include a hostname.")
+          }
+
+          console.log(`Validated PostgreSQL connection string format for host: ${url.hostname}`)
+
+          if (url.hostname.startsWith("db.")) {
+            console.log(
+              "Direct database hosts may resolve to IPv6 only. If GitHub Actions later fails with 'Network is unreachable', switch SUPABASE_DB_URL to the Supabase session pooler connection string.",
+            )
+          }
+          EOF
+
+      - name: Check database host network compatibility
+        run: |
+          node --input-type=module <<'EOF'
+          import dns from 'node:dns/promises'
+
+          const value = process.env.SUPABASE_DB_URL?.trim() ?? ""
+          const url = new URL(value)
+          const hostname = url.hostname
+
+          const [ipv4Records, ipv6Records] = await Promise.all([
+            dns.resolve4(hostname).catch(() => []),
+            dns.resolve6(hostname).catch(() => []),
+          ])
+
+          console.log(`IPv4 records: ${ipv4Records.length}`)
+          console.log(`IPv6 records: ${ipv6Records.length}`)
+
+          if (ipv4Records.length === 0 && ipv6Records.length > 0) {
+            throw new Error(
+              "The database host resolves only to IPv6. GitHub-hosted runners often cannot reach IPv6-only direct hosts. Replace SUPABASE_DB_URL with the Supabase session pooler connection string (port 5432).",
+            )
+          }
+
+          if (ipv4Records.length === 0 && ipv6Records.length === 0) {
+            throw new Error("The database host did not resolve in DNS. Check SUPABASE_DB_URL.")
+          }
+
+          console.log("Database host DNS resolution is compatible with the runner.")
+          EOF
+
+      - name: Validate rclone Google Drive config
+        run: |
+          printf '%s' "$GDRIVE_RCLONE_CONFIG" | grep -q '^\[gdrive\]$' || (echo "GDRIVE_RCLONE_CONFIG must include a [gdrive] remote." && exit 1)
+          printf '%s' "$GDRIVE_RCLONE_CONFIG" | grep -q '^type = drive$' || (echo "GDRIVE_RCLONE_CONFIG must configure a Google Drive remote." && exit 1)
+          printf '%s' "$GDRIVE_RCLONE_CONFIG" | grep -q '^token = ' || (echo "GDRIVE_RCLONE_CONFIG must include an OAuth token." && exit 1)
+
+      - name: Configure rclone for Google Drive
+        run: |
+          mkdir -p "$HOME/.config/rclone"
+          printf '%s\n' "$GDRIVE_RCLONE_CONFIG" > "$HOME/.config/rclone/rclone.conf"
+          chmod 600 "$HOME/.config/rclone/rclone.conf"
+
+      - name: Create backup dump
+        run: |
+          mkdir -p backups
+          BACKUP_BASENAME="supabase-stage-public-data-$(date -u +%Y%m%dT%H%M%SZ).dump"
+          BACKUP_PATH="backups/$BACKUP_BASENAME"
+          ENCRYPTED_BACKUP_PATH="$BACKUP_PATH.enc"
+          BACKUP_REMOTE_DIR="${BACKUP_BASENAME%.dump}"
+
+          docker run --rm \
+            -e SUPABASE_DB_URL="$SUPABASE_DB_URL" \
+            -e BACKUP_BASENAME="$BACKUP_BASENAME" \
+            -v "$PWD/backups:/backups" \
+            postgres:17 \
+            sh -ceu '
+              pg_dump \
+                --dbname="$SUPABASE_DB_URL" \
+                --format=custom \
+                --compress=9 \
+                --data-only \
+                --schema=public \
+                --no-owner \
+                --no-privileges \
+                --file="/backups/$BACKUP_BASENAME"
+            '
+
+          openssl enc -aes-256-cbc -salt -pbkdf2 -md sha256 \
+            -pass env:BACKUP_ENCRYPTION_PASSPHRASE \
+            -in "$BACKUP_PATH" \
+            -out "$ENCRYPTED_BACKUP_PATH"
+
+          rm -f "$BACKUP_PATH"
+
+          sha256sum "$ENCRYPTED_BACKUP_PATH" > "$ENCRYPTED_BACKUP_PATH.sha256"
+
+          echo "BACKUP_PATH=$ENCRYPTED_BACKUP_PATH" >> "$GITHUB_ENV"
+          echo "BACKUP_SUM_PATH=$ENCRYPTED_BACKUP_PATH.sha256" >> "$GITHUB_ENV"
+          echo "BACKUP_REMOTE_DIR=$BACKUP_REMOTE_DIR" >> "$GITHUB_ENV"
+
+      - name: Upload backup to Google Drive
+        run: |
+          rclone mkdir "gdrive:$BACKUP_REMOTE_DIR"
+          rclone copyto "$BACKUP_PATH" "gdrive:$BACKUP_REMOTE_DIR/$(basename "$BACKUP_PATH")"
+          rclone copyto "$BACKUP_SUM_PATH" "gdrive:$BACKUP_REMOTE_DIR/$(basename "$BACKUP_SUM_PATH")"
+
+      - name: Remove expired backups from Google Drive
+        run: |
+          rclone delete gdrive: \
+            --min-age "${BACKUP_RETENTION_DAYS}d" \
+            --include "supabase-stage-public-data-*/**" \
+            --drive-use-trash=false
+
+          rclone rmdirs gdrive: --leave-root
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-stage-backup-${{ github.run_id }}
+          path: |
+            ${{ env.BACKUP_PATH }}
+            ${{ env.BACKUP_SUM_PATH }}
+          retention-days: 7
